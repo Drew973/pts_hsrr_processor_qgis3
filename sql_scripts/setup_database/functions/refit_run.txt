@@ -1,0 +1,26 @@
+
+
+CREATE OR REPLACE FUNCTION hsrr.refit_run(rn varchar) 
+	RETURNS void AS $$
+	
+	BEGIN
+	delete from hsrr.fitted where run=rn;
+	
+
+	insert into hsrr.fitted select
+	(
+	sec,
+	reversed,
+	xsp,
+	r.run,
+	f_line,
+	vect,
+	int_pt_to_meas_ch(sec,s_point),
+	int_pt_to_meas_ch(sec,e_point),
+	rl
+	)
+	from hsrr.routes inner join hsrr.readings on hsrr.readings.run=rn and hsrr.routes.s_line<=hsrr.readings.f_line and hsrr.readings.f_line<=hsrr.routes.e_line and hsrr.readings.run=rn;
+
+	
+	END;			
+$$ LANGUAGE plpgsql;

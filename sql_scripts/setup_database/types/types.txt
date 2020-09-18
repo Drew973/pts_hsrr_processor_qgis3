@@ -1,0 +1,7 @@
+drop type if exists sec_dir cascade;
+
+CREATE TYPE sec_rev AS
+   (
+     sec VARCHAR,
+     rev bool
+   );

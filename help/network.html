@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<title>Network</title>
+    <body>
+        <h3 id="network">Network table</h3>
+
+	<p>Table containing road network<p>
+
+		<p>-	sec = section label<p>
+		<p>-	geom = linestring geometry.<p>
+		<p>-	buff = buffer around geom for use in autofitting. st_buffer(st_linemerge(geom),30,'endcap=flat join=round'); works well
+		<p>-	meas_len = 'official' length of section. Used to calculate section chainage.<p>
+		<p>-	one_way = True where section is one way. used for autofitting.<p>
+		<p>-	road = road name<p>
+		<p>-	rbt = True where section is roundabout. st_buffer often wrong shape for roundabouts. Something like:	"update network set buff=st_buffer(st_makePolygon(geom),30) where rbt" fixes this.<p>
+		<p>-	benchmark = True where section is benchmark.<p>
+
+ 	<p> Created as:<p>
+	<object data="../sql_scripts/setup_database/init_network.txt" type="text/plain" typemustmatch="" width="500" style="height: 300px"></object>
+
+    </body>
+</html>

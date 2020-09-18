@@ -1,0 +1,12 @@
+create table if not exists network
+    (
+    sec varchar primary key,
+	geom geometry('linestring',27700),
+	buff geometry('polygon',27700),
+	meas_len float,
+	one_way bool,
+	road varchar,
+	rbt bool,
+	gtest_benchmark bool,
+	direction varchar
+    );

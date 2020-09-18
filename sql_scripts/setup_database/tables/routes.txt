@@ -1,0 +1,23 @@
+--drop table if exists hsrr.routes cascade;
+
+create table if not exists hsrr.routes(
+sec varchar references network(sec) ON DELETE CASCADE ON UPDATE CASCADE,
+reversed bool,
+xsp varchar,
+run varchar references hsrr.run_info(run) ON DELETE CASCADE ON UPDATE CASCADE,
+s_line int,
+e_line int,
+note varchar,
+start_sec_ch float,
+end_sec_ch float,
+pk serial primary key--needs primary key for qsqltablemodel to work properly
+);
+
+create index if not exists routes_run on hsrr.routes(run);
+create index if not exists routes_sec on hsrr.routes(sec);
+create index if not exists routes_xsp on hsrr.routes(xsp);
+create index if not exists routes_rev on hsrr.routes(reversed);
+create index if not exists routes_s on hsrr.routes(s_line);
+create index if not exists routes_e on hsrr.routes(e_line);
+
+

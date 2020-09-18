@@ -1,0 +1,18 @@
+
+create table if not exists hsrr.readings
+(
+run varchar references hsrr.run_info(run) on delete cascade on update cascade,
+f_line int,--which line of file data came from
+t timestamptz,
+raw_ch int,--machine chainage from file. start or end?
+rl int,--reading
+s_point geometry('Point',27700),
+e_point geometry('Point',27700),
+vect geometry('Linestring',27700),
+ps_text varchar[],--possible section and direction
+ps sec_rev[],
+primary key(run,f_line)
+);
+
+
+create index on hsrr.readings using gist(vect);

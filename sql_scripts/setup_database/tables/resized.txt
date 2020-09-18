@@ -1,0 +1,11 @@
+create table if not exists hsrr.resized(
+sec varchar,
+reversed bool,
+xsp varchar,
+s_ch int,
+e_ch int,
+RL int,
+vals int[],
+lengths int[],
+geom geometry
+);

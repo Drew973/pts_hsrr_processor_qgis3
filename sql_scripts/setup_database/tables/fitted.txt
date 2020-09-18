@@ -1,0 +1,12 @@
+create table if not exists hsrr.fitted
+(
+sec varchar references network(sec) on delete cascade on update cascade,
+reversed bool,
+xsp varchar,
+run varchar references hsrr.run_info(run) on delete cascade on update cascade,
+f_line int,
+vect geometry('linestring',27700),
+s_ch float,
+e_ch float,
+rl float
+)

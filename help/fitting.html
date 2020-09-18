@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>fitting</title>
+    </head>
+    <body>
+
+
+        <h3 id="fitting">Fitting</h3>
+
+		<p>The <a href="routes.html">routes table </a> defines which section/direction/xsp readings ( <a href="r.html">table r</a> ) are in. The fitting tab contains tools for editing it. <p>
+
+		<p>Readings in run with s<=f_line<=e are fit to sec,reversed,xsp<p>
+
+		<p>start_sec_ch and end_sec_ch only need to be set where the gps is inaccurate. They are the section chainages (in direction of section) where the route enters/leaves the section.Where they are valid (>=0)they are used to calculate section chainages of readings.<p>
+		<p>  Otherwise the closest point of the section to the reading is used.<p>
+		<p>The notes column is for the benefit of the person fitting. Autofit will insert rows with a note of 'auto'. <p>
+		
+
+
+	<h4 id="fitting">How to use</h4>
+		<P>Click the autofit button to automatically create the route for the selected run. It is likely to make mistakes where:<P>
+
+		<P> -The nearest section to a reading is not the correct one <P>
+		<P> -The gps is inaccurate <P>
+		<P> -The network is inaccurate <P>
+
+
+		<P>Autofit does not work out xsp. Do this by manually or with update statement (update routes set xsp='CL1' where not reversed; update routes set xsp='CR1' where reversed;).<P>
+
+
+		<p> Set start_sec_ch and end_sec_ch column where the gps is inaccurate. This will be important for tunnels and small roundabouts (that readings are closer to wrong side of).  <p>
+
+		<p> Rows with a yellow background have have a gap and should be checked. <p>
+		<p> Rows with a red background overlap by more than 1 reading and are probabaly wrong.<p>
+
+		<p>Click on refit run or refit all to update the fitted table and the resized table.<p>
+
+        <h4 id="initial_fit">Initial fit</h4>
+
+		<p> Table <a href="fitted.html">fitted</a> is created by joining  readings( <a href="r.html">table r</a> ) to the <a href="routes.html">routes table</a> <p>
+
+		
+        <h4 id="correcting for season">Correcting for Season</h4>
+
+		<p> Where the section is marked as a benchmark in <a href="network.html">network</a> and the run is marked as a benchmark in <a href="run_info.html">run_info</a>
+		readings from fitted are inserted into the <a href="benchmarks.html">benchmarks table</a>.
+		The benchmarks table is used to calculate <a href="correction_factors.html">seasonal correction factors</a>.
+		These correction factors and season from <a href="run_info.html">run_info</a> are used to update fitted, calculating sfc from gn.
+		<p>
+
+
+        <h4 id="resizing">Resizing</h4>
+
+		<p> Table <a href="resized.html">resized</a> is made by joining <a href="fitted.html">fitted</a> to 10m <a href="pieces.html">pieces</a> of requested sections.
+			sfc is calculated as the mean sfc of all readings with section chainage within range. When there are no readings in range readings from 10m either side are used.
+		<p>
+
+
+	</body>
+</html>

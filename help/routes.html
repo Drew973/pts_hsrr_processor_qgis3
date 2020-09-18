@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>routes&fitting</title>
+    </head>
+    <body>
+        <h3 id="routes">routes table</h3>
+
+        <p> Table routes is used in the  <a href="fitting.html">fitting process</a> to describe how to fit readings to network. It can be edited through the 'fitting' tab.<p>
+		<p>created as:<p>
+		<object data="../sql_scripts/setup_database/init_routes.txt" type="text/plain" typemustmatch="" width="800" style="height: 400px"></object>
+
+		<p>columns:<p>
+		<p>-	sec = section label. Needs to be in <a href="network.html">network</a> <p>
+		<p>-	reversed=survey in opposite direction to section<p>
+		<p>-	xsp <p>
+		<p>-	run:needs to be in <a href="run_info.html">run_info</a> <p>
+		<p>-	s,e=f_line where run enters/leaves section. 
+		<p>-	note=note for benefit of person fitting. Autofit adds rows with note of 'auto'.
+		<p>-	pk=primary key.
+		<p>-	start_sec_ch,end_sec_ch: Section chainages where run enters/leaves section. Can be used to calculate section chainage.
+		
+
+
+
+	</body>
+</html>
+
