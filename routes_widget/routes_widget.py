@@ -1,9 +1,8 @@
 from qgis.PyQt.QtWidgets import QWidget
 
-from .select_section import select_sections,ch_to_id,zoom_to_selected
 from .better_table_model import betterTableModel
 
-from . import color_functions,table_view_to_csv,upload_routes_csv,file_dialogs
+from . import color_functions,table_view_to_csv,upload_routes_csv,file_dialogs,layer_functions
 from .row_dialog import row_dialog,row_to_dict
 
 from qgis.PyQt.QtSql import QSqlTableModel
@@ -61,6 +60,7 @@ class routes_widget(QWidget,rw):
         self.run_fieldbox=run_fieldbox
         self.readings_box=readings_box
 
+
         
         self.readings_box.layerChanged.connect(lambda layer:set_to(layer=layer,fb=self.run_fieldbox,name='run'))
         self.readings_box.layerChanged.connect(lambda layer:set_to(layer=layer,fb=self.f_line_fieldbox,name='f_line'))
@@ -98,17 +98,13 @@ class routes_widget(QWidget,rw):
         self.upload_act=upload_menu.addAction('Upload routes csv(s)...')
         self.upload_act.triggered.connect(self.upload_routes)
         
-
+        self.filter_layer_button.clicked.connect(lambda:layer_functions.filter_by_run(self.readings_box.currentLayer(),self.run_fieldbox.currentField(),self.run_box.currentText()))
+ 
         self.init_rows_menu()
+        set_layer_box_to(self.network_box,'network')
+        set_layer_box_to(self.readings_box,'readings')
         
-        i=self.readings_box.findText('r')
-        if i!=-1:
-            self.readings_box.setLayer(self.readings_box.layer(i))
 
-        i=self.network_box.findText('network')
-        if i!=-1:
-            self.network_box.setLayer(network_box.layer(i))
-            
 
     def init_rows_menu(self):
         self.rows_menu = QMenu()
@@ -254,7 +250,8 @@ class routes_widget(QWidget,rw):
     def drop_rows(self,rows):
         for row in sorted(rows, reverse=True):#bottom to top because deleting row changes index
             self.route_model.removeRow(row)
-            
+
+    
     #selects rows where section==sec
     def route_view_select(self,sec):
         inds=self.route_model.match(self.route_model.index(0,0),0,sec,-1)#list of model indexes where 1st col==sec 
@@ -285,7 +282,7 @@ class routes_widget(QWidget,rw):
         have_network=self.network_box.currentLayer() and self.sec_fieldbox.currentField()
         
         if have_network:
-            select_sections([i.data() for i in inds],self.network_box.currentLayer(),self.sec_fieldbox.currentField(),zoom=True)
+            layer_functions.select_sections([i.data() for i in inds],self.network_box.currentLayer(),self.sec_fieldbox.currentField(),zoom=True)
 
         if not have_network:
             iface.messageBar().pushMessage('fitting tool: Fields not set.')
@@ -300,7 +297,7 @@ class routes_widget(QWidget,rw):
         s_col=self.route_model.fieldIndex('s_line')
         e_col=self.route_model.fieldIndex('e_line')
         
-        ids=[ch_to_id(r_layer,r_field,run,f_field,i.sibling(i.row(),s_col).data(),i.sibling(i.row(),e_col).data()) for i in inds]#list of lists
+        ids=[layer_functions.ch_to_id(r_layer,r_field,run,f_field,i.sibling(i.row(),s_col).data(),i.sibling(i.row(),e_col).data()) for i in inds]#list of lists
         if ids:
             ids2=[]
             for i in ids:
@@ -308,10 +305,25 @@ class routes_widget(QWidget,rw):
                 
             #r_layer.setSelectedFeatures(ids2)#qgis2
             r_layer.selectByIds(ids2)#qgis3
-            zoom_to_selected(r_layer)
+            layer_functions.zoom_to_selected(r_layer)
 
     
 #sets layer of fieldbox fb to layer then tries to set fb to field with name name
 def set_to(layer,fb,name=None):
     fb.setLayer(layer)
     fb.setField(name)
+
+
+#returns 1st layer in qgsMapLayerComboBox named name if exists
+def layer_box_find(layer_box,name):
+    i=layer_box.findText(name)
+    if i!=-1:
+        return layer_box.layer(i)
+
+                
+#set layer of qgsMapLayerComboBox to 1st layer named name if exists
+def set_layer_box_to(layer_box,name):
+    i=layer_box.findText(name)
+    if i!=-1:
+        layer_box.setLayer(layer_box.layer(i))
+    

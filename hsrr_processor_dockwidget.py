@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import QMenuBar,QDockWidget,QMenu
 from PyQt5.QtGui import QDesktopServices
 
 from .routes_widget.routes_widget import routes_widget
-from .routes_widget.select_section import select_sections
+from .routes_widget.layer_functions import select_sections
 from .routes_widget.better_table_model import betterTableModel
 
 
@@ -56,8 +56,9 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.rw_placeholder.addWidget(self.rw)
         #self.tabs.insertTab(2,self.rw,'Fitting')
         
-        self.upload_csv_button.clicked.connect(self.upload_run)
-
+        self.upload_csv_button.clicked.connect(self.upload_run_dialog)
+        self.upload_folder_button.clicked.connect(self.upload_folder_dialog)
+        
         self.open_help_button.clicked.connect(self.open_help)        
         self.init_run_menu()
 
@@ -97,23 +98,32 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             return False
 
 
-    def upload_run(self):
+
+    def upload_runs(self,runs):
+        for f in runs:
+            r=self.dd.upload_run_csv(f)
+            if r==True:
+                self.upload_log.appendPlainText('sucessfully uploaded %s'%(f))
+            else:
+                self.upload_log.appendPlainText('error uploading %s:%s'%(f,str(r)))
+                self.update()
+        self.run_info_model.select()
+        self.rw.get_runs()
+
+
+    def upload_run_dialog(self):
         if self.check_connected():
             files=file_dialogs.load_files_dialog('.xls','upload spreadsheet')
             if files:
                 for f in files:
-                    r=self.dd.upload_run_csv(f)
-                    if r==True:
-                        self.upload_log.appendPlainText('sucessfully uploaded %s'%(f))
-                    else:
-                        self.upload_log.appendPlainText('error uploading %s:%s'%(f,str(r)))
-                  #  self.upload_log.repaint()
-                    self.update()
-                    #processEvents()
-               
-                self.run_info_model.select()
-                self.rw.get_runs()
+                    self.upload_runs(files)
+
             
+    def upload_folder_dialog(self):
+        folder=file_dialogs.load_directory_dialog('.xls','upload all .xls in directory')
+        if folder:
+            self.upload_runs(file_dialogs.filter_files(folder,'.xls'))
+                
             
         
     def closeEvent(self, event):
@@ -173,3 +183,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
 
         else:
             iface.messageBar().pushMessage('fitting tool:network layer&section field not set')
+
+
+
+

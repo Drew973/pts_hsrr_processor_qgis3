@@ -1,5 +1,5 @@
-drop table if exists hsrr.run_info cascade;
 
-create table hsrr.run_info(
-run varchar primary key
+create table if not exists hsrr.run_info(
+run varchar primary key,
+file varchar
 )

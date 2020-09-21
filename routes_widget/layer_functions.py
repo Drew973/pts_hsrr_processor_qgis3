@@ -1,7 +1,6 @@
 from qgis.utils import iface
 from qgis.core import QgsFeatureRequest
 
-
 #layer=qgislayer
 #section=string,
 #field=string
@@ -58,3 +57,10 @@ def ch_to_id(layer,run_field,run,f_field,s,e):
         
 
 #"run"='bench mark 01' and 'TEST01'<="f_line" and "f_line"<='12'
+
+#filter layer to only show run
+#run=string. run_field=fieldname with run
+def filter_by_run(layer,run_field,run):
+    layer.setSubsetString("%s = '%s'"%(run_field,run))
+    
+
