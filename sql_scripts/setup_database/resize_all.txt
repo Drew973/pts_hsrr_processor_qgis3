@@ -1,16 +1,16 @@
 drop function if exists resize_all;
 
-CREATE OR REPLACE FUNCTION resize_all() 
+CREATE OR REPLACE FUNCTION hsrr.resize_all() 
 	RETURNS void AS $$
 	
 	BEGIN
 	
-	delete from resized;
+	delete from hsrr.resized;
 
-	insert into resized(sec,reversed,xsp,s_ch,e_ch,pks,geom)
-	select pieces.sec,pieces.reversed,pieces.xsp,s_ch,e_ch,array_agg(pk) as pks,geom
-	from pieces left join fitted on fitted.sec=pieces.sec and fitted.xsp=pieces.xsp and fitted.reversed=pieces.reversed and s_ch<=sec_ch and sec_ch<=e_ch
-	group by pieces.sec,pieces.reversed,pieces.xsp,s_ch,e_ch,geom;
+	insert into hsrr.resized(sec,reversed,xsp,s_ch,e_ch,pks,geom)
+	select p.sec,p.reversed,p.xsp,s_ch,e_ch,array_agg(pk) as pks,geom
+	from hsrr.pieces as p left join fitted on fitted.sec=pieces.sec and fitted.xsp=pieces.xsp and fitted.reversed=pieces.reversed and s_ch<=sec_ch and sec_ch<=e_ch
+	group by p.sec,pieces.reversed,p.xsp,s_ch,e_ch,geom;
 
 	update resized set pks=array( select pk from fitted where fitted.sec=resized.sec and fitted.xsp=resized.xsp and fitted.reversed=resized.reversed and s_ch-10<=sec_ch and sec_ch<=e_ch+10) where cardinality(pks)=0;
 
@@ -19,7 +19,6 @@ CREATE OR REPLACE FUNCTION resize_all()
 																		  
 	END;			
 $$ LANGUAGE plpgsql;
-
 
 
 

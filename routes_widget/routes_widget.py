@@ -59,9 +59,7 @@ class routes_widget(QWidget,rw):
         self.network_box=network_box
         self.run_fieldbox=run_fieldbox
         self.readings_box=readings_box
-
-
-        
+      
         self.readings_box.layerChanged.connect(lambda layer:set_to(layer=layer,fb=self.run_fieldbox,name='run'))
         self.readings_box.layerChanged.connect(lambda layer:set_to(layer=layer,fb=self.f_line_fieldbox,name='f_line'))
         self.network_box.layerChanged.connect(lambda layer:set_to(layer=layer,fb=self.sec_fieldbox,name='sec'))
@@ -250,6 +248,7 @@ class routes_widget(QWidget,rw):
     def drop_rows(self,rows):
         for row in sorted(rows, reverse=True):#bottom to top because deleting row changes index
             self.route_model.removeRow(row)
+        self.route_model.select()
 
     
     #selects rows where section==sec

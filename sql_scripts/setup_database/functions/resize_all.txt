@@ -1,21 +1,20 @@
 CREATE OR REPLACE FUNCTION hsrr.resize_all() 
 	RETURNS void AS $$
-	BEGIN
-	--delete and reinsert any sections in run
-	delete from hsrr.resized;
 	
-	insert into hsrr.resized(sec,reversed,xsp,s_ch,e_ch,RL,vals,lengths,geom)
-	select p.sec,p.reversed,p.xsp,s_ch,e_ch,array_agg(pk) as pks,avg(sfc) as sfc,geom
-	from hsrr.pieces as p left join fitted on fitted.sec=p.sec and fitted.xsp=p.xsp and fitted.reversed=p.reversed and s_ch<=sec_ch and sec_ch<=e_ch
-	group by p.sec,p.reversed,p.xsp,s_ch,e_ch,geom;
+	BEGIN
+	
+	delete from resized;
 
-		-- within 10m either side where no sfc in range 
-	update resized set (pks,sfc)=
-	(select array_agg(pk),avg(sfc) from fitted where fitted.sec=resized.sec and fitted.xsp=resized.xsp and fitted.reversed=resized.reversed and s_ch-10<=sec_ch and sec_ch<=e_ch+10	)
-	where sfc is null;						
-						 	
-																			  
+	insert into resized(sec,reversed,xsp,s_ch,e_ch,pks,geom)
+	select p.sec,p.reversed,p.xsp,s_ch,e_ch,array_agg(pk) as pks,geom
+	from hsrr.pieces as p left join fitted on fitted.sec=pieces.sec and fitted.xsp=pieces.xsp and fitted.reversed=pieces.reversed and s_ch<=sec_ch and sec_ch<=e_ch
+	group by p.sec,pieces.reversed,p.xsp,s_ch,e_ch,geom;
+
+	update resized set pks=array( select pk from fitted where fitted.sec=resized.sec and fitted.xsp=resized.xsp and fitted.reversed=resized.reversed and s_ch-10<=sec_ch and sec_ch<=e_ch+10) where cardinality(pks)=0;
+
+	perform calc_benchmarks();
+	update resized set sfc= (select avg(fitted.sfc) from fitted where fitted.pk=any(pks));
+																		  
 	END;			
 $$ LANGUAGE plpgsql;
-						
-select hsrr.resize_all();
+

@@ -55,7 +55,9 @@ RETURNS int AS $$
 $$ LANGUAGE plpgsql;
 									 
 
---make array into ranges of values separated by dist									 
+--make array into ranges of values separated by dist		
+--[] type range. upper will be 1 too high
+
 CREATE OR REPLACE FUNCTION array_cluster_int(a int[],dist int) 
 RETURNS int4range[] AS $$
 	Declare
@@ -67,6 +69,12 @@ RETURNS int4range[] AS $$
 				
 									 
 	BEGIN
+		if cardinality(a)=1 then 
+			r= r||int4range(a[1],a[1],'[]');--need [] to not be empty
+			return r;
+		end if;
+								   
+	
 		FOREACH v in array sorted loop
 			--raise notice 's: %', s;
 			if v-prev>dist then

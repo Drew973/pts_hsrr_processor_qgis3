@@ -3,22 +3,18 @@ CREATE OR REPLACE FUNCTION hsrr.refit_all()
 	
 	BEGIN
 	delete from hsrr.fitted;
-	
 
-	insert into hsrr.fitted select
-	(
+	insert into hsrr.fitted(sec,reversed,xsp,run,f_line,vect,s_ch,e_ch,rl) select
 	sec,
 	reversed,
 	xsp,
-	r.run,
+	hsrr.routes.run,
 	f_line,
 	vect,
-	int_pt_to_meas_ch(sec,s_point),
-	int_pt_to_meas_ch(sec,e_point),
+	meas_sec_ch(sec,s_point),
+	meas_sec_ch(sec,e_point),
 	rl
-	)
 	from hsrr.routes inner join hsrr.readings on hsrr.readings.run=hsrr.routes.run and hsrr.routes.s_line<=hsrr.readings.f_line and hsrr.readings.f_line<=hsrr.routes.e_line;
-
 	
 	END;			
 $$ LANGUAGE plpgsql;

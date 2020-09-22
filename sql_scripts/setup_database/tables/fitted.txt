@@ -1,5 +1,6 @@
 create table if not exists hsrr.fitted
 (
+pk serial primary key,
 sec varchar references network(sec) on delete cascade on update cascade,
 reversed bool,
 xsp varchar,
@@ -9,4 +10,5 @@ vect geometry('linestring',27700),
 s_ch float,
 e_ch float,
 rl float
-)
+);
+

@@ -8,9 +8,9 @@
 
 [general]
 name=HSRR Processor
-qgisMinimumVersion=3.0
+qgisMinimumVersion=3.01
 description=Plugin for processing HSRR data
-version=3.0
+version=3.01
 author=Drew
 email=drew.bennett@ptsinternational.co.uk
 

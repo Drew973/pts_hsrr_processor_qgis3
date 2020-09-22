@@ -84,7 +84,7 @@ insert into hsrr.readings(run,raw_ch,t,f_line,rl,s_point,e_point,vect)
 
 
     def refit_runs(self,runs):        
-        self.cancelable_queries(queries=['select hsrr.refit_all();','select resize_all();'],args=None,text='refitting all runs',sucess_message='grip tester tool:refit runs')
+        self.cancelable_queries(queries=['select hsrr.refit_all();','select hsrr.resize_all();'],args=None,text='refitting all runs',sucess_message='grip tester tool:refit runs')
 
         
     def get_runs(self):
@@ -94,6 +94,7 @@ insert into hsrr.readings(run,raw_ch,t,f_line,rl,s_point,e_point,vect)
         while q.next():
             runs.append(q.value(0))
         return runs
+
 
 def is_valid(row):
     if len(row)>=15 and row[0]!='Position km':
