@@ -1,25 +1,28 @@
 --redo resized run by deleting then reinserting all sections in run.
 --delete then insert avoids problems if pieces/req changed.
 
+
 CREATE OR REPLACE FUNCTION hsrr.resize_run(rn varchar) 
 	RETURNS void AS $$
-	declare
-		sects varchar[]=array(select distinct sec from hsrr.routes where run=rn);--sections in run
+	DECLARE
+		sects varchar[]=array(select distinct sec from hsrr.routes where run=rn);--sections in run	
 	BEGIN
-	--delete and reinsert any sections in run
+	
 	delete from hsrr.resized where sec=any(sects);
 	
-	insert into hsrr.resized(sec,reversed,xsp,s_ch,e_ch,RL,vals,lengths,geom)
-	select p.sec,p.reversed,p.xsp,s_ch,e_ch,array_agg(pk) as pks,avg(sfc) as sfc,geom
-	from (select * from pieces where sec=any(sects)) as p left join fitted on fitted.sec=p.sec and fitted.xsp=p.xsp and fitted.reversed=p.reversed and s_ch<=sec_ch and sec_ch<=e_ch
-	group by p.sec,p.reversed,p.xsp,s_ch,e_ch,geom;
+	insert into hsrr.resized (sec,reversed,xsp,s_ch,e_ch,pks,vals,lengths)
+	select p.sec,p.reversed,p.xsp,lower(p.rg) as s_ch,upper(p.rg) as e_ch,array_agg(pk) as pks,array_agg(rl) as vals,array_agg(upper(f.rg*p.rg)-lower(f.rg*p.rg))as lengths
+	from (select * from hsrr.pieces where sec=any(sects)) as p left join hsrr.fitted as f 
+	on f.sec=p.sec and f.xsp=p.xsp and f.reversed=p.reversed and f.rg&&p.rg and f.run=rn
+	group by p.sec,p.reversed,p.xsp,p.rg;
+	
 
-		-- within 10m either side where no sfc in range 
-	update resized set (pks,sfc)=
-	(select array_agg(pk),avg(sfc) from fitted where fitted.sec=resized.sec and fitted.xsp=resized.xsp and fitted.reversed=resized.reversed and s_ch-10<=sec_ch and sec_ch<=e_ch+10	)
-	where sec=any(sects) and sfc is null;						
-						 	
-																			  
+	update hsrr.resized set 
+	rl=weighted_av(lengths,vals),
+	geom=case when reversed then get_line(sec,e_ch,cast(s_ch as float)) when not reversed then get_line(sec,cast(s_ch as float),e_ch) end
+	;
+															
+																															   
+	perform hsrr.recalc_coverage();																																			  
 	END;			
 $$ LANGUAGE plpgsql;
-							

@@ -1,5 +1,7 @@
 from qgis.core import QgsTask
 from qgis.utils import iface
+from psycopg2.extras import execute_batch
+
 
 
 class cancelable_sql(QgsTask):
@@ -38,6 +40,20 @@ class cancelable_sql(QgsTask):
     def cancel(self):
         self.con.cancel()#psycopg2 conection can be cancelled from any thread.
         QgsTask.cancel(self)
+
+
+class cancellable_batch(cancelable_sql):
+
+    def run(self):
+        cur=self.con.cursor()
+        try:
+            with self.con:
+                    execute_batch(self.cur,q,vals)
+            return True
+        except Exception as e:
+            self.err=e
+            return False
+    
 
 
 class cancelable_queries(QgsTask):
@@ -89,3 +105,23 @@ class cancelable_queries(QgsTask):
     def cancel(self):
         self.con.cancel()#psycopg2 conection can be cancelled from any thread.
         QgsTask.cancel(self)
+
+
+class cancellable_batches(cancelable_queries):
+
+    def run(self):
+        cur=self.con.cursor()
+
+        try:
+            with self.con: #with makes con commit here
+                for i,v in enumerate(self.queries):
+                    if self.isCanceled():
+                        return False
+                    execute_batch(self.cur,v,self.args[i])
+                    self.setProgress(100*float(i)/len(self.queries))#setProgress takes float from 0 to 100 and emits progressChanged signal
+            return True
+        
+        except Exception as e:
+            self.err=e
+            return False
+    

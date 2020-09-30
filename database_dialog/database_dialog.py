@@ -193,6 +193,27 @@ class database_dialog(QDialog,FORM_CLASS):
             #task.run()#happens imediatly. no progressbar/dialog displayed
 
 
+    def cancelable_batch_queries(self,queries,args,text='running task',sucess_message=''):
+        #args is list of dicts/lists here
+        if self.task:
+            iface.messageBar().pushMessage('fitting tool: already running task')
+            
+        else:
+            self.progress.setLabel(QLabel(text=text))
+            self.progress.setMaximum(100)
+
+            self.task = sql_tasks.cancelable_batch_queries(self.con,queries,args,sucess_message=sucess_message)
+            self.task.progressChanged.connect(self.progress.setValue)
+           # self.task.setDescription(text)
+            self.task.taskCompleted.connect(self.task_canceled)
+            self.task.taskTerminated.connect(self.task_canceled)
+
+            self.progress.canceled.connect(self.task.cancel)
+              
+            self.progress.show()
+            QgsApplication.taskManager().addTask(self.task)#priority 0, happens after other tasks. displaying message/widget is task?
+            #task.run()#happens imediatly. no progressbar/dialog displayed
+
   
     def task_canceled(self):
         self.task=None

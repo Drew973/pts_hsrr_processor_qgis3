@@ -51,21 +51,21 @@ class hsrr_dd(database_dialog):
 
             self.sql('insert into hsrr.run_info(run,file) values(%(run)s,%(file)s);',{'run':ref,'file':run})
 
+            args=[]
 
-            with self.con:                
-                q='''
+            q='''
 with se as (select St_Transform(ST_SetSRID(ST_makePoint(%(start_lon)s,%(start_lat)s),4326),27700) as sp,ST_Transform(ST_SetSRID(ST_makePoint(%(end_lon)s,%(end_lat)s),4326),27700) as ep)
 insert into hsrr.readings(run,raw_ch,t,f_line,rl,s_point,e_point,vect) 
 (select %(run)s,%(raw_ch)s,to_timestamp(replace(%(ts)s,' ',''),'dd/mm/yyyyHH24:MI:ss'),%(f_line)s,%(rl)s,sp,ep,st_makeLine(sp,ep) from se)
         
                 '''
-
-                with open(run,'r',encoding='utf-8',errors='ignore') as f:
-                    vals = [read_line(line,i+1,ref) for i,line in enumerate(f.readlines())]
-                    vals = [v for v in vals if v]
-                    execute_batch(self.cur,q,vals)
-#            self.sql_script(path.join(path.dirname(__file__),'sql_scripts','update_run.sql'),{'run':ref})#run is name of run in run_info
+                
+            with open(run,'r',encoding='utf-8',errors='ignore') as f:
+                vals = [read_line(line,i+1,ref) for i,line in enumerate(f.readlines())]
+                vals = [v for v in vals if v]
+                args.append(vals)
             
+            self.cancellable_batch_queries([q for a in args],args,'uploaded runs')              
             return True
             
         except Exception as e:
@@ -85,7 +85,7 @@ insert into hsrr.readings(run,raw_ch,t,f_line,rl,s_point,e_point,vect)
 
     def refit_runs(self,runs):        
         self.cancelable_queries(queries=['select hsrr.refit_all();','select hsrr.resize_all();'],args=None,text='refitting all runs',sucess_message='grip tester tool:refit runs')
-
+        
         
     def get_runs(self):
         q=QSqlQuery(db=self.db)
@@ -95,14 +95,25 @@ insert into hsrr.readings(run,raw_ch,t,f_line,rl,s_point,e_point,vect)
             runs.append(q.value(0))
         return runs
 
+#'sec':self.sec.text(),'rev':self.rev.isChecked(),'xsp':self.xsp.text(),'s':self.s_ch.value(),'e':self.e_ch.value(),'note':self.note.text(),'run':self.run_box.currentText()
 
+   # def insert_into_routes(self,run,sec,rev,xsp,s_line,e_line,note,start_sec_ch,end_sec_ch):
+        #self.sql('insert into hsrr.routes(run,sec,reversed,xsp,s_line,e_line,note,start_sec_ch,end_sec_ch values(%(run)s,%(sec)s,%(rev)s,%(xsp)s,%(s_line)s,%(e_line)s,%(note)s,%(start_sec_ch)s),%(end_sec_ch)s')
+
+
+    #d is dict of column name and value
+    def insert_into_routes(self,d):
+        self.sql('insert into hsrr.routes(%s) values (%s)'%(','.join(d.keys()),','.join(['%('+k+')s' for k in d.keys()])),d)
+        
+   
+#check row of hsrr spreadsheet
 def is_valid(row):
     if len(row)>=15 and row[0]!='Position km':
         return row[0] and row[1] and row[2]  and row[12] and row[13] and row[14] and row[15]
 
 
 
-#read line of readings .xls file
+#read line of hsrr spreadsheet. returns dict
 def read_line(line,f_line,run):
     row=line.strip().split('\t')
     if is_valid(row):

@@ -1,20 +1,26 @@
+
+
 CREATE OR REPLACE FUNCTION hsrr.resize_all() 
 	RETURNS void AS $$
 	
 	BEGIN
 	
-	delete from resized;
+	delete from hsrr.resized;
 
-	insert into resized(sec,reversed,xsp,s_ch,e_ch,pks,geom)
-	select p.sec,p.reversed,p.xsp,s_ch,e_ch,array_agg(pk) as pks,geom
-	from hsrr.pieces as p left join fitted on fitted.sec=pieces.sec and fitted.xsp=pieces.xsp and fitted.reversed=pieces.reversed and s_ch<=sec_ch and sec_ch<=e_ch
-	group by p.sec,pieces.reversed,p.xsp,s_ch,e_ch,geom;
+	insert into hsrr.resized (sec,reversed,xsp,s_ch,e_ch,pks,vals,lengths)
+	select p.sec,p.reversed,p.xsp,lower(p.rg) as s_ch,upper(p.rg) as e_ch,array_agg(pk) as pks,array_agg(rl) as vals,array_agg(upper(f.rg*p.rg)-lower(f.rg*p.rg))as lengths
+	from hsrr.pieces as p left join hsrr.fitted as f 
+	on f.sec=p.sec and f.xsp=p.xsp and f.reversed=p.reversed and f.rg&&p.rg group by p.sec,p.reversed,p.xsp,p.rg;
+																																				  
+	update hsrr.resized set 
+		rl=weighted_av(lengths,vals),
+		geom=case when reversed then get_line(sec,e_ch,cast(s_ch as float)) when not reversed then get_line(sec,cast(s_ch as float),e_ch) end;
 
-	update resized set pks=array( select pk from fitted where fitted.sec=resized.sec and fitted.xsp=resized.xsp and fitted.reversed=resized.reversed and s_ch-10<=sec_ch and sec_ch<=e_ch+10) where cardinality(pks)=0;
-
-	perform calc_benchmarks();
-	update resized set sfc= (select avg(fitted.sfc) from fitted where fitted.pk=any(pks));
-																		  
+	perform hsrr.recalc_coverage();																																			  
+	--update hsrr.requested set coverage=coverage(sec,reversed,xsp);
 	END;			
 $$ LANGUAGE plpgsql;
-
+																																					  
+																																					  
+select hsrr.resize_all();																																					  
+select * from hsrr.resized;		

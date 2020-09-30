@@ -13,7 +13,7 @@ import sys
 
 from . import color_functions,hsrr_processor_dd,file_dialogs,copy_functions
 
-from PyQt5.QtWidgets import QMenuBar,QDockWidget,QMenu
+from PyQt5.QtWidgets import QDockWidget,QMenu
 from PyQt5.QtGui import QDesktopServices
 
 from .routes_widget.routes_widget import routes_widget
@@ -61,6 +61,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         
         self.open_help_button.clicked.connect(self.open_help)        
         self.init_run_menu()
+        self.init_requested_menu()
 
         
     def connect(self):
@@ -68,9 +69,20 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             if self.dd.connected:
                 self.database_label.setText('Connected to %s'%(self.dd.db.databaseName()))
                 self.rw.get_runs()
-                self.connect_run_info()                
+                self.connect_run_info()
+                self.connect_coverage()
             else:
                 self.database_label.setText('Not Connected')
+
+
+    def coverage_show_all(self):
+        self.requested_model.setFilter('')
+        self.requested_model.select()
+        
+        
+    def coverage_show_missing(self):
+        self.requested_model.setFilter("coverage=0")
+        self.requested_model.select()
 
 
 #opens help/index.html in default browser
@@ -96,7 +108,6 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         else:
             iface.messageBar().pushMessage('fitting tool: Not connected to database')
             return False
-
 
 
     def upload_runs(self,runs):
@@ -132,6 +143,31 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         event.accept()
                 
 
+    def connect_coverage(self):
+       # self.requested_model = QSqlTableModel(db=self.dd.db)
+        self.requested_model=betterTableModel(db=self.dd.db)
+        self.requested_model.setEditStrategy(QSqlTableModel.OnFieldChange)        
+        self.requested_model.setTable('hsrr.requested')
+        self.requested_model.setEditable(False)#set all cols uneditable
+        self.requested_model.setColEditable(self.requested_model.fieldIndex("note"),True)#make note col editable
+
+        self.requested_model.setSort(self.requested_model.fieldIndex("sec"),Qt.AscendingOrder)
+        
+        self.requested_view.setModel(self.requested_model)
+        self.requested_view.setColumnHidden(self.requested_model.fieldIndex("pk"), True)#hide pk column
+
+        
+        self.show_all_button.clicked.connect(self.coverage_show_all)
+        self.show_missing_button.clicked.connect(self.coverage_show_missing)
+    
+        if self.show_missing_button.isChecked():
+            self.coverage_show_missing()
+        else:
+            self.coverage_show_all()
+
+        self.requested_view.resizeColumnsToContents()
+
+        
     def prepare_database(self):
         if self.check_connected():
             msgBox=QMessageBox();
@@ -162,9 +198,22 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.run_info_view.setContextMenuPolicy(Qt.CustomContextMenu);
         self.run_info_view.customContextMenuRequested.connect(self.show_run_info_menu)
 
+
+#for requested view
+    def init_requested_menu(self):
+        self.requested_menu = QMenu()
+        act=self.requested_menu.addAction('zoom to section')
+        act.triggered.connect(lambda:self.select_on_network([i.data() for i in self.requested_view.selectionModel().selectedRows()]))
+        self.requested_view.setContextMenuPolicy(Qt.CustomContextMenu);
+        self.requested_view.customContextMenuRequested.connect(self.show_requested_menu)
+
         
     def show_run_info_menu(self,pt):
         self.run_info_menu.exec_(self.mapToGlobal(pt))
+
+
+    def show_requested_menu(self,pt):
+        self.requested_menu.exec_(self.mapToGlobal(pt))
 
 
     def refresh_run_info(self):

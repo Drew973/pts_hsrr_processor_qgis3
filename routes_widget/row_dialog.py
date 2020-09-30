@@ -62,8 +62,11 @@ class row_dialog(QDialog,FORM_CLASS):
     
     def add(self):
         #self.insert(**self.get())
-        self.insert()
-        self.accept()
+        try:
+            self.insert()
+            self.accept()
+        except Exception as e:
+            iface.messageBar().pushMessage(str(e))
 
         
 
@@ -75,28 +78,23 @@ class row_dialog(QDialog,FORM_CLASS):
             self.accept()
 
     def get(self):
-        return {'sec':self.sec.text(),'rev':self.rev.isChecked(),'xsp':self.xsp.text(),'s':self.s_ch.value(),'e':self.e_ch.value(),'note':self.note.text(),'run':self.run_box.currentText()}
-
+        #return {'sec':self.sec.text(),'rev':self.rev.isChecked(),'xsp':self.xsp.text(),'s':self.s_ch.value(),'e':self.e_ch.value(),'note':self.note.text(),'run':self.run_box.currentText()}
+        return {'sec':self.sec.text(),'reversed':self.rev.isChecked(),'xsp':self.xsp.text(),'s_line':self.s_ch.value(),'e_line':self.e_ch.value(),'note':self.note.text(),'run':self.run_box.currentText()}
         
     def insert(self):
         #self.dd.sql3("insert into routes(sec,xsp,run,reversed,s,e,note) values(%(sec)s,%(xsp)s,%(run)s,%(rev)s,%(s)s,%(e)s,%(note)s)",self.get())
        # self.dd.db.transaction()
-        
-        r=self.model.record()
-        d=self.get()
-        [r.setValue(k,d[k]) for k in d];
-
-
-        r.remove(r.indexOf('pk'))#delete pk value. To let autoincrementing happen?
-        #r.setGenerated(r.indexOf('pk'),True)#allows database to generate this
-        #r.setValue(r.indexOf('pk'),None)
-        
-        if self.model.insertRecord(-1, r):
-        #qDebug()<<"successful insertion";
-            self.model.submitAll()
+        #r=self.model.record()
+        #d=self.get()
+        #[r.setValue(k,d[k]) for k in d];
+        #r.remove(r.indexOf('pk'))#delete pk value. To let autoincrementing happen?
+        #if self.model.insertRecord(-1, r):
+         #   self.model.submitAll()
         #else:
             #self.model.revertAll()
         #    self.dd.db.rollback()
+        self.dd.insert_into_routes(self.get())
+        self.model.select()
 
     
     def drop(self):
