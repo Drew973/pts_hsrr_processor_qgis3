@@ -25,9 +25,9 @@ def load_files_dialog(ext='',caption=''):
 
 
 def save_file_dialog(ext='',caption='',default_name=''):
-    p=QFileDialog.getSaveFileName(caption=caption,filter='*'+ext+';;*',directory=path.join(get_default_folder(),default_name))[0]#(path,filter) for pyqt5
+    p=QFileDialog.getSaveFileName(caption=caption,filter='*'+ext+';;*',directory=os.path.join(get_default_folder(),default_name))[0]#(path,filter) for pyqt5
     #p=QFileDialog.getSaveFileName(caption=caption,filter='*'+ext+';;*',directory=path.join(folder,default_name))#(path,filter) for pyqt4
-    
+    print(p)
     if p!='':
         settings.setValue('folder',os.path.dirname(p))#save folder in settings
         return p

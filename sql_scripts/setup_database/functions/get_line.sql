@@ -40,7 +40,7 @@ $$ LANGUAGE plpgsql;
 													   					
 CREATE OR REPLACE FUNCTION get_line(sect varchar,start_ch float,end_ch float) 
 RETURNS geometry AS $$
-		declare g geometry=geom from network where sec=sect;
+		declare g geometry=geom from hsrr.network where sec=sect;
         BEGIN	
 				return make_line(g,meas_len(sect),start_ch,end_ch);
 		END;			

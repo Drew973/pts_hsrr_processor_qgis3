@@ -22,10 +22,22 @@ class hsrr_dd(database_dialog):
             #c.copy_from(f,'routes',sep=',')
             self.con.commit()
             
-
-    def download_routes(self,f):
+#to is str
+    def download_route(self,to,run):
         #self.query_to_csv(query='select * from routes order by run,s',to=s,force_quote='(run,sec,note)')
-        self.cur.copy_expert("COPY routes TO STDOUT WITH (FORMAT CSV,HEADER,FORCE_QUOTE(run,sec,note),null '')",f)
+        q="COPY (select * from hsrr.routes where run=%s) TO STDOUT WITH (FORMAT CSV,HEADER,FORCE_QUOTE(run,sec,note),null '')"%(run)
+        with open(to,'w') as f:
+            self.cur.copy_expert(q,f)
+        
+
+    def download_routes(self,to):
+        #self.query_to_csv(query='select * from routes order by run,s',to=s,force_quote='(run,sec,note)')
+        with open(to,'w') as f:
+            self.cur.copy_expert("COPY hsrr.routes TO STDOUT WITH (FORMAT CSV,HEADER,FORCE_QUOTE(run,sec,note),null '')",f)
+        
+
+    def remove_slips(self,run):
+        self.sql('select hsrr.remove_slips(%(run)s)',{'run':run})
         
 
     def setup_database(self):
@@ -65,7 +77,7 @@ insert into hsrr.readings(run,raw_ch,t,f_line,rl,s_point,e_point,vect)
                 vals = [v for v in vals if v]
                 args.append(vals)
             
-            self.cancellable_batch_queries([q for a in args],args,'uploaded runs')              
+            self.cancelable_batch_queries([q for a in args],args,'uploaded runs')              
             return True
             
         except Exception as e:

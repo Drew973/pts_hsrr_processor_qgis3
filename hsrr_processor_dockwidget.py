@@ -68,9 +68,9 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         if self.dd.exec_():
             if self.dd.connected:
                 self.database_label.setText('Connected to %s'%(self.dd.db.databaseName()))
-                self.rw.get_runs()
                 self.connect_run_info()
                 self.connect_coverage()
+                self.refresh_run_info()
             else:
                 self.database_label.setText('Not Connected')
 
@@ -97,9 +97,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.run_info_model.setTable('hsrr.run_info')
         self.run_info_model.setSort(self.run_info_model.fieldIndex("run"),Qt.AscendingOrder)
         self.run_info_model.setEditStrategy(QSqlTableModel.OnFieldChange)
-        
         self.run_info_view.setModel(self.run_info_model)
-        self.run_info_model.select()
         
         
     def check_connected(self):
@@ -118,8 +116,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             else:
                 self.upload_log.appendPlainText('error uploading %s:%s'%(f,str(r)))
                 self.update()
-        self.run_info_model.select()
-        self.rw.get_runs()
+        self.refresh_run_info()
 
 
     def upload_run_dialog(self):
@@ -218,7 +215,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
 
     def refresh_run_info(self):
         self.run_info_model.select()
-        self.rw.get_runs()
+        self.rw.refresh_runs()
 
 
 

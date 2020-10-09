@@ -4,11 +4,19 @@ RETURNS sec_rev[] AS $$
     BEGIN
 		return array(
 			select sr from(
-			select (sec,False)::sec_rev as sr,st_distance(vect,geom) as dist from network where st_intersects(buff,vect) and vectors_align(vect,geom,ca)
+			select (sec,False)::sec_rev as sr,st_distance(vect,geom) as dist from hsrr.network where st_intersects(buff,vect) and vectors_align(vect,geom,ca)
 			union
-			select (sec,True)::sec_rev as sr,st_distance(vect,geom) as dist from network where st_intersects(buff,vect) and vectors_align(st_reverse(vect),geom,ca) and not one_way
+			select (sec,True)::sec_rev as sr,st_distance(vect,geom) as dist from hsrr.network where st_intersects(buff,vect) and vectors_align(st_reverse(vect),geom,ca) and not one_way
 			)a order by dist
 			);
+	END;			
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION hsrr.remove_slips(rn varchar)
+RETURNS void AS $$											 
+    BEGIN
+		delete from hsrr.routes where run=rn and (select funct from hsrr.network where hsrr.network.sec=hsrr.routes.sec)='slip road';
 	END;			
 $$ LANGUAGE plpgsql;
 
@@ -21,7 +29,7 @@ RETURNS void AS $$
 		update hsrr.readings set ps_text=cast(ps as varchar[]) where run=rn;
 		delete from hsrr.routes where run=rn and note='auto';						  									   
 		
-		with a as (select ps[1] as p,unnest(array_cluster_int(array_agg(f_line),5)) from hsrr.readings where run=rn group by run,ps[1])
+		with a as (select ps[1] as p,unnest(array_cluster_int(array_agg(f_line),1)) from hsrr.readings where run=rn group by run,ps[1])
 			,b as (select (p).sec as sec,(p).rev as rev,lower(unnest) as s,upper(unnest) as e from a)																											   																											   
 			insert into hsrr.routes(run,sec,reversed,s_line,e_line,note) 										  
 			select rn,sec,rev,s,e,'auto' from b
@@ -29,6 +37,23 @@ RETURNS void AS $$
 
 	END;			
 $$ LANGUAGE plpgsql
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.autofit_run(rn varchar)
+RETURNS void AS $$											 
+    BEGIN
+		update hsrr.readings set ps=ps(vect) where run=rn;
+		update hsrr.readings set ps_text=cast(ps as varchar[]) where run=rn;
+		delete from hsrr.routes where run=rn and note='auto';						  									   
+		
+		insert into hsrr.routes(run,note,sec,reversed,s_line,e_line)								  
+		with a as (select f_line,unnest(ps) as ps from hsrr.readings where run=rn),
+		b as (select unnest(array_cluster_int(array_agg(f_line),1)) as rg,ps from a group by ps)
+		select rn,'auto',(ps).sec,(ps).rev,lower(rg),upper(rg)-1 from b;
+											  
+	END;			
+$$ LANGUAGE plpgsql;
 
 
 
