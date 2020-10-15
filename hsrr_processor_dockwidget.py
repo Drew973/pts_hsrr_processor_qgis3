@@ -62,7 +62,8 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.open_help_button.clicked.connect(self.open_help)        
         self.init_run_menu()
         self.init_requested_menu()
-
+        self.rw.refit.connect(lambda:print('refit'))
+        
         
     def connect(self):
         if self.dd.exec_():
@@ -140,6 +141,10 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         event.accept()
                 
 
+    def after_refit(self):
+        self.coverage_model.select()
+        
+
     def connect_coverage(self):
        # self.requested_model = QSqlTableModel(db=self.dd.db)
         self.requested_model=betterTableModel(db=self.dd.db)
@@ -152,11 +157,11 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         
         self.requested_view.setModel(self.requested_model)
         self.requested_view.setColumnHidden(self.requested_model.fieldIndex("pk"), True)#hide pk column
-
         
         self.show_all_button.clicked.connect(self.coverage_show_all)
         self.show_missing_button.clicked.connect(self.coverage_show_missing)
-    
+        self.rw.refit.connect(self.requested_model.select)
+            
         if self.show_missing_button.isChecked():
             self.coverage_show_missing()
         else:

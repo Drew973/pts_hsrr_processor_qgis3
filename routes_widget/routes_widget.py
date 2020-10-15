@@ -9,7 +9,7 @@ from qgis.PyQt.QtCore import Qt
 from qgis.utils import iface
 #from PyQt5.QtGui import QMenu
 from PyQt5.QtWidgets import QMenuBar,QMenu
-
+from qgis.PyQt.QtCore import pyqtSignal
 
 import os
 
@@ -52,7 +52,10 @@ columns run varchar,f_line int,sec varchar,reversed bool,xsp varchar.
 
 '''
 
-class routes_widget(QWidget,rw):   
+class routes_widget(QWidget,rw):
+    refit = pyqtSignal()
+
+    
     #readings_box and network box are pre existing qgsmapLayerComboboxes. fieldboxes are preexisting. dd is database dialog.
     def __init__(self,parent,dd,table,readings_box,network_box,run_fieldbox,f_line_fieldbox,sec_fieldbox):
         super(QWidget,self).__init__(parent)
@@ -186,13 +189,26 @@ class routes_widget(QWidget,rw):
         f_lines=[f[self.f_line_fieldbox.currentField()] for f in self.readings_box.currentLayer().selectedFeatures() if f[self.run_fieldbox.currentField()]==self.current_run()]
         print(sects)
         print(f_lines)
-        
-        inds=self.route_model.match(start=self.route_model.index(0,self.route_model.fieldIndex("sec")),role=Qt.dataRole,hits=-1)
+
+        #indexes matching sects
+
+        self,
+        start=self.route_model.index(0,self.route_model.fieldIndex("sec"))
+        inds=self.route_model.match(start,Qt.EditRole,sec,hits=-1)
+        inds=self.route_model.match(role=Qt.EditRole,hits=-1)
+#match(const QModelIndex &, int , const QVariant &, int , Qt::MatchFlags ) const : QModelIndexList
+
+
         rows=[i.row() for i in inds]
         print(rows)
         #self.route_model.index(row,sec_col)
         #self.route_view.selectRow()
 
+        #item=self.table.findItems(sec,Qt.MatchExactly)[0] for qtableview
+
+
+
+        #self.routes_view.selectAll()?clearSelection
 
     def add_from_feats(self):
 
@@ -232,12 +248,13 @@ class routes_widget(QWidget,rw):
     def refit_all(self):
         if self.check_connected():
             self.dd.refit_runs(self.dd.get_runs())  
+            self.refit.emit()
 
 
     def refit_run(self):
         if self.check_connected():
             self.dd.refit_run(self.run_box.currentText())
-         
+            self.refit.emit()
     
 
 #select section and points of readings layer if set
