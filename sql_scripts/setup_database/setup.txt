@@ -8,6 +8,7 @@ tables/resized.txt;
 tables/requested.txt;
 views/pieces.txt;
 functions/weighted_av.txt;
+functions/coverage.sql;
 functions/vector_functions.sql;
 functions/refit_run.txt;
 functions/resize_run.txt;

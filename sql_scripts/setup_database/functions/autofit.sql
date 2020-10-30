@@ -20,7 +20,7 @@ RETURNS void AS $$
 	END;			
 $$ LANGUAGE plpgsql;
 
-
+/*
 
 CREATE OR REPLACE FUNCTION hsrr.autofit_run(rn varchar)
 RETURNS void AS $$											 
@@ -36,7 +36,7 @@ RETURNS void AS $$
 			where not sec is null;
 
 	END;			
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
 
 
 
@@ -55,22 +55,24 @@ RETURNS void AS $$
 	END;			
 $$ LANGUAGE plpgsql;
 
-
+*/
 
 
 --autofit all possible sections
 CREATE OR REPLACE FUNCTION hsrr.autofit_run(rn varchar)
 RETURNS void AS $$
 	DECLARE
-		srs sec_rev[]=array(select DISTINCT unnest(ps) from hsrr.readings where run=rn);
+		srs sec_rev[];
 	
     BEGIN
 		update hsrr.readings set ps=ps(vect) where run=rn;
 		update hsrr.readings set ps_text=cast(ps as varchar[]) where run=rn;
+
+		srs=array(select DISTINCT unnest(ps) from hsrr.readings where run=rn);
 		delete from hsrr.routes where run=rn and note='auto';						  									   
 		
 		perform hsrr.insert_ps(rn,unnest(srs));--syntax
-
+		delete from hsrr.routes where run=rn and note='auto' and hsrr.piece_angle(run,sec,reversed,s_line,e_line) <0.9
 	END;			
 $$ LANGUAGE plpgsql;
 										 
@@ -90,3 +92,29 @@ Declare
 										  
 	END;			
 $$ LANGUAGE plpgsql;	
+
+
+CREATE OR REPLACE FUNCTION hsrr.piece_angle(rn varchar,sect varchar,rev bool,s_line int,e_line int)
+RETURNS float AS $$	
+	declare
+		geom geometry('linestring')=(select geom from hsrr.network where hsrr.network.sec=sect);
+		g geometry;
+		s geometry('Point');
+		e geometry('Point');
+										  
+    BEGIN
+																									   
+																										   
+		if rev then
+			s=(select s_point from hsrr.readings as r where r.run=rn and r.f_line=s_line);
+			e=(select e_point from hsrr.readings as r where r.run=rn and r.f_line=e_line);
+		else
+			s=(select e_point from hsrr.readings as r where r.run=rn and r.f_line=e_line);
+			e=(select s_point from hsrr.readings as r where r.run=rn and r.f_line=s_line);
+		end if;
+			   
+		g=st_makeLine(st_closestPoint(geom,s),st_closestPoint(geom,e));
+		return cos_angle(g,st_makeLine(s,e));																																			
+										  
+    END;			
+$$ LANGUAGE plpgsql;

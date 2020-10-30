@@ -56,7 +56,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.rw_placeholder.addWidget(self.rw)
         #self.tabs.insertTab(2,self.rw,'Fitting')
         
-        self.upload_csv_button.clicked.connect(self.upload_run_dialog)
+        self.upload_csv_button.clicked.connect(self.upload_runs_dialog)
         self.upload_folder_button.clicked.connect(self.upload_folder_dialog)
         
         self.open_help_button.clicked.connect(self.open_help)        
@@ -110,7 +110,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
 
 
     def upload_runs(self,runs):
-        for f in runs:
+        for f in runs:            
             r=self.dd.upload_run_csv(f)
             if r==True:
                 self.upload_log.appendPlainText('sucessfully uploaded %s'%(f))
@@ -120,9 +120,9 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.refresh_run_info()
 
 
-    def upload_run_dialog(self):
+    def upload_runs_dialog(self):
         if self.check_connected():
-            files=file_dialogs.load_files_dialog('.xls','upload spreadsheet')
+            files=file_dialogs.load_files_dialog('.xls','upload spreadsheets')
             if files:
                 for f in files:
                     self.upload_runs(files)

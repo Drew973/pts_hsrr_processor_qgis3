@@ -1,0 +1,112 @@
+upload folder not working?
+
+
+fitting to lrs:
+
+	already have limited number of options per point (ps). need way to choose best one.
+
+	fitting metrics:
+		 for 1 point:
+			distance
+			bearing
+			reversed
+
+
+		piece
+			average distance
+
+			bearings of points vs section
+
+			fraction of section covered
+			coverage of section
+
+
+		multiple pieces/route/everything
+
+			average distance?
+
+			penalty for complexity (number of sections)
+
+
+
+
+
+roundabouts problem with 100m spaced readings
+
+how to make choices exclusive?
+
+insert pieces 1 by 1?
+go to point after e_line of last piece.
+
+sec/rev in ps of point
+
+each piece goes from e_line of last piece to e_line of ps?
+
+
+
+or insert all possible pieces then find where conflict and remove the less likely option. 
+
+
+
+piece angle seems to be best metric.
+function to choose best option.
+highest piece_angle.
+returns piece type.
+
+
+CREATE OR REPLACE FUNCTION hsrr.av_dist(rn varchar,sect varchar,s_line int,e_line int)
+RETURNS float AS $$	
+	declare
+		geom geometry('linestring')=(select geom from hsrr.network where hsrr.network.sec=sect);
+
+    BEGIN
+		
+		return avg(st_distance(vect,geom)) from hsrr.readings as r where r.run=rn and s_line<=f_line and f_line<=e_line;
+	
+    END;			
+$$ LANGUAGE plpgsql;
+							   				   
+							   
+							   
+CREATE OR REPLACE FUNCTION hsrr.piece_cov(rn varchar,sect varchar,s_line int,e_line int)
+RETURNS float AS $$	
+	declare
+		mn float=min(meas_sec_ch(sect,s_point)) from hsrr.readings as r where r.run=rn and s_line<=f_line and f_line<=e_line;
+
+		ma float=max(meas_sec_ch(sect,e_point)) from hsrr.readings as r where r.run=rn and s_line<=f_line and f_line<=e_line;
+		
+    BEGIN
+		return abs(ma-mn);
+    END;			
+$$ LANGUAGE plpgsql;
+
+
+
+
+
+							   										 
+CREATE OR REPLACE FUNCTION hsrr.piece_angle(rn varchar,sect varchar,rev bool,s_line int,e_line int)
+RETURNS float AS $$	
+	declare
+		geom geometry('linestring')=(select geom from hsrr.network where hsrr.network.sec=sect);
+		g geometry;
+		s geometry('Point');
+		e geometry('Point');
+										  
+    BEGIN
+																									   
+																										   
+		if rev then
+			s=(select s_point from hsrr.readings as r where r.run=rn and r.f_line=s_line);
+			e=(select e_point from hsrr.readings as r where r.run=rn and r.f_line=e_line);
+		else
+			s=(select e_point from hsrr.readings as r where r.run=rn and r.f_line=e_line);
+			e=(select s_point from hsrr.readings as r where r.run=rn and r.f_line=s_line);
+		end if;
+			   
+		g=st_makeLine(st_closestPoint(geom,s),st_closestPoint(geom,e));
+		return cos_angle(g,st_makeLine(s,e));																																			
+										  
+    END;			
+$$ LANGUAGE plpgsql;
+												

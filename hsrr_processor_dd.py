@@ -1,14 +1,16 @@
 from .database_dialog.database_dialog import database_dialog
 
+import io
+
 #import psycopg2
 from psycopg2.extras import DictCursor,execute_batch
-from os import path
 from qgis.PyQt.QtSql import QSqlQuery
 
+import os
 
 
 '''
-subclass of database_dialog specific to scrim processor.
+subclass of database_dialog specific to hsrr processor.
 
 '''
 
@@ -18,7 +20,7 @@ class hsrr_dd(database_dialog):
 #',' in note column is problem. fix with quote charactors?
     def upload_route(self,csv):
         with open(csv,'r') as f:
-            self.cur.copy_expert('copy routes from STDIN with CSV HEADER',f)
+            self.cur.copy_expert('copy hsrr.routes from STDIN with CSV HEADER',f)
             #c.copy_from(f,'routes',sep=',')
             self.con.commit()
             
@@ -45,46 +47,61 @@ class hsrr_dd(database_dialog):
         self.sql('CREATE SCHEMA if not exists hsrr;')
 
 
-        folder=path.join(path.dirname(__file__),'sql_scripts','setup_database')
-        with open(path.join(folder,'setup.txt')) as f:
+        folder=os.path.join(path.dirname(__file__),'sql_scripts','setup_database')
+        with open(os.path.join(folder,'setup.txt')) as f:
             for c in f.read().split(';'):
                 com=c.strip()
                 if com:
-                    self.sql_script(path.join(folder,com))
+                    self.sql_script(os.path.join(folder,com))
       
 
     def autofit_run(self,run):
         self.sql('select hsrr.autofit_run(%(run)s)',{'run':run})
 
     
-    def upload_run_csv(self,run):
+    def upload_run_csv(self,f):
         try:
-            ref=path.splitext(path.basename(run))[0]
+            ref=os.path.splitext(os.path.basename(f))[0]
+            ref=self.generate_run_name(ref)
+            csv_like = io.StringIO()
 
-            self.sql('insert into hsrr.run_info(run,file) values(%(run)s,%(file)s);',{'run':ref,'file':run})
-
-            args=[]
-
-            q='''
-with se as (select St_Transform(ST_SetSRID(ST_makePoint(%(start_lon)s,%(start_lat)s),4326),27700) as sp,ST_Transform(ST_SetSRID(ST_makePoint(%(end_lon)s,%(end_lat)s),4326),27700) as ep)
-insert into hsrr.readings(run,raw_ch,t,f_line,rl,s_point,e_point,vect) 
-(select %(run)s,%(raw_ch)s,to_timestamp(replace(%(ts)s,' ',''),'dd/mm/yyyyHH24:MI:ss'),%(f_line)s,%(rl)s,sp,ep,st_makeLine(sp,ep) from se)
+            with open(f,'r',encoding='utf-8',errors='ignore') as d:
+                lines=[parse_line(line,i+1,ref) for i,line in enumerate(d.readlines())]
+                [csv_like.write(line+'\n') for line in lines if line]
         
-                '''
-                
-            with open(run,'r',encoding='utf-8',errors='ignore') as f:
-                vals = [read_line(line,i+1,ref) for i,line in enumerate(f.readlines())]
-                vals = [v for v in vals if v]
-                args.append(vals)
-            
-            self.cancelable_batch_queries([q for a in args],args,'uploaded runs')              
+            csv_like.seek(0)
+
+            with self.con:
+                self.cur.copy_from(csv_like,table='hsrr.staging',sep=',',columns=['raw_ch','ts','rl','start_lon','start_lat','end_lon','end_lat','f_line','run'])
+
+            self.sql('insert into hsrr.run_info(run,file) values(%(run)s,%(file)s);',{'run':ref,'file':f})
+            self.sql('select hsrr.staging_to_readings();')
             return True
             
         except Exception as e:
             self.con.rollback()
+            self.sql('delete from hsrr.staging;')
             return e
 
 
+    def run_exists(self,run):
+        r=self.sql('select count(run) as c from hsrr.run_info where run=%(run)s',{'run':run},ret=True)
+        if r[0]['c']>0:
+            return True
+
+    #add charactors to ref until unique(ie_run doesn't exist)
+    def generate_run_name(self,ref):
+        if not self.run_exists(ref):
+            return ref
+        
+        r=ref
+        i=0
+        while self.run_exists(r):
+            i+=1
+            r='%s_%i'%(ref,i)
+            
+        return r
+        
     def drop_runs(self,runs):
         runs="{"+','.join(runs)+"}"
         self.sql("delete from hsrr.run_info where run=any(%(runs)s::varchar[])",{'runs':runs})
@@ -124,10 +141,20 @@ def is_valid(row):
         return row[0] and row[1] and row[2]  and row[12] and row[13] and row[14] and row[15]
 
 
-
+#unused
 #read line of hsrr spreadsheet. returns dict
 def read_line(line,f_line,run):
     row=line.strip().split('\t')
     if is_valid(row):
         return {'raw_ch':float(row[0])*1000,'ts':row[1],'rl':row[2],'start_lon':row[12],'start_lat':row[13],'end_lon':row[14],'end_lat':row[15],'f_line':f_line,'run':run}
+
+
+def parse_line(line,f_line,run):
+    row=line.strip().split('\t')
+    if is_valid(row):
+        return ','.join([row[0],row[1],row[2],row[12],row[13],row[14],row[15],str(f_line),run])
     
+
+def is_valid(row):
+    if len(row)>=15 and row[0]!='Position km':
+        return row[0] and row[1] and row[2]  and row[12] and row[13] and row[14] and row[15]
