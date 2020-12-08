@@ -9,11 +9,11 @@ CREATE OR REPLACE FUNCTION hsrr.resize_all()
 
 	insert into hsrr.resized (sec,reversed,xsp,s_ch,e_ch,pks,vals,lengths)
 	select p.sec,p.reversed,p.xsp,lower(p.rg) as s_ch,upper(p.rg) as e_ch,array_agg(pk) as pks,array_agg(rl) as vals,array_agg(upper(f.rg*p.rg)-lower(f.rg*p.rg))as lengths
-	from hsrr.pieces as p left join hsrr.fitted as f 
+	from hsrr.pieces as p left join hsrr.fitted as f
 	on f.sec=p.sec and f.xsp=p.xsp and f.reversed=p.reversed and f.rg&&p.rg group by p.sec,p.reversed,p.xsp,p.rg;
 			
 
-	update hsrr.resized set pks,lengths=array(select pk,length)hsrr.fitted where int4range(s_ch,e_ch+)
+	update hsrr.resized set pks,lengths=array(select pk,length)hsrr.fitted where int4range(s_ch,e_ch)
 																																	  
 	update hsrr.resized set 
 		rl=weighted_av(lengths,vals),
@@ -23,5 +23,5 @@ CREATE OR REPLACE FUNCTION hsrr.resize_all()
 	--update hsrr.requested set coverage=coverage(sec,reversed,xsp);
 	END;			
 $$ LANGUAGE plpgsql;
-																																					  
-																																					  
+
+																																		  
