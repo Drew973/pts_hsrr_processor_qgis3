@@ -48,6 +48,11 @@ or insert all possible pieces then find where conflict and remove the less likel
 
 
 
+
+regexp_replace(file, '^.+[/\\]', '') ro get filename
+
+
+
 piece angle seems to be best metric.
 function to choose best option.
 highest piece_angle.

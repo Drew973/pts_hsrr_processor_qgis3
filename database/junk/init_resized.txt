@@ -1,0 +1,15 @@
+drop table if exists resized;
+
+create table resized(
+sec varchar,
+reversed bool,
+xsp varchar,
+s_ch float,
+e_ch float,
+pks int[],
+sfc float,
+geom geometry('linestring',27700)
+);
+
+
+create index on resized using gist(geom);

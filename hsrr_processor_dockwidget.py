@@ -11,7 +11,6 @@ import os
 from os import path
 import sys
 
-from . import color_functions,hsrr_processor_dd,file_dialogs,copy_functions
 
 from PyQt5.QtWidgets import QDockWidget,QMenu
 from PyQt5.QtGui import QDesktopServices
@@ -19,6 +18,8 @@ from PyQt5.QtGui import QDesktopServices
 from .routes_widget.routes_widget import routes_widget
 from .routes_widget.layer_functions import select_sections
 from .routes_widget.better_table_model import betterTableModel
+from .database_dialog.database_dialog import database_dialog
+from . import color_functions,hsrr_processor_dd,file_dialogs,copy_functions
 
 
 
@@ -47,13 +48,10 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.setupUi(self)
 
         self.connect_button.clicked.connect(self.connect)
-        self.dd=hsrr_processor_dd.hsrr_dd(self)
-
+        self.dd=None
         self.prepare_database_button.clicked.connect(self.prepare_database)
           
-        self.rw=routes_widget(self,self.dd,'hsrr.routes',self.readings_box,self.network_box,self.run_fieldbox,self.f_line_fieldbox,self.sec_fieldbox)
 
-        self.rw_placeholder.addWidget(self.rw)
         #self.tabs.insertTab(2,self.rw,'Fitting')
         
         self.upload_csv_button.clicked.connect(self.upload_runs_dialog)
@@ -62,18 +60,26 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.open_help_button.clicked.connect(self.open_help)        
         self.init_run_menu()
         self.init_requested_menu()
-        self.rw.refit.connect(lambda:print('refit'))
         
         
     def connect(self):
-        if self.dd.exec_():
-            if self.dd.connected:
-                self.database_label.setText('Connected to %s'%(self.dd.db.databaseName()))
-                self.connect_run_info()
-                self.connect_coverage()
-                self.refresh_run_info()
-            else:
-                self.database_label.setText('Not Connected')
+        db=database_dialog(self).exec_()
+        try:
+            self.dd=hsrr_processor_dd.hsrr_dd(db)
+            self.rw=routes_widget(self,self.dd,'hsrr.routes',self.readings_box,self.network_box,self.run_fieldbox,self.f_line_fieldbox,self.sec_fieldbox)
+            self.rw_placeholder.addWidget(self.rw)
+            self.rw.refit.connect(lambda:print('refit'))
+        
+            self.dd.sql('set search_path to hsrr,public;')
+            self.database_label.setText('Connected to %s'%(db.databaseName()))
+            self.connect_run_info()
+            self.connect_coverage()
+            self.refresh_run_info()
+            
+        except Exception as e:
+            iface.messageBar().pushMessage("could not connect to database. %s"%(str(e)),duration=4)
+            self.database_label.setText('Not Connected')            
+            self.dd=None
 
 
     def coverage_show_all(self):
@@ -110,13 +116,16 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
 
 
     def upload_runs(self,runs):
-        for f in runs:            
-            r=self.dd.upload_run_csv(f)
-            if r==True:
-                self.upload_log.appendPlainText('sucessfully uploaded %s'%(f))
+        for f in runs:
+            if self.dd.is_uploaded(f):
+                self.upload_log.appendPlainText('%s is already uploaded\n'%(f))
             else:
-                self.upload_log.appendPlainText('error uploading %s:%s'%(f,str(r)))
-                self.update()
+                r=self.dd.upload_run_csv(f)
+                if r==True:
+                    self.upload_log.appendPlainText('sucessfully uploaded %s\n'%(f))
+                else:
+                    self.upload_log.appendPlainText('error uploading %s:%s\n'%(f,str(r)))
+        self.update()
         self.refresh_run_info()
 
 
@@ -124,9 +133,9 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         if self.check_connected():
             files=file_dialogs.load_files_dialog('.xls','upload spreadsheets')
             if files:
-                for f in files:
-                    self.upload_runs(files)
-
+             #   for f in files:#?
+                 #   self.upload_runs(files)
+                self.upload_runs(files)
             
     def upload_folder_dialog(self):
         folder=file_dialogs.load_directory_dialog('.xls','upload all .xls in directory')

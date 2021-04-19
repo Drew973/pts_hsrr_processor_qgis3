@@ -25,6 +25,9 @@
      </item>
      <item>
       <widget class="QComboBox" name="connections_box">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
        <property name="toolTip">
         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Load details for saved Postgis connections.&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
@@ -32,6 +35,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="refresh_button">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
        <property name="toolTip">
         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Refresh connections dropdown.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
@@ -130,16 +136,16 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_6">
      <item>
-      <widget class="QPushButton" name="connect_button">
+      <widget class="QPushButton" name="test_button">
        <property name="text">
-        <string>Connect</string>
+        <string>Test</string>
        </property>
       </widget>
      </item>
     </layout>
    </item>
    <item>
-    <widget class="QPushButton" name="ok_button">
+    <widget class="QPushButton" name="close_button">
      <property name="text">
       <string>Close</string>
      </property>

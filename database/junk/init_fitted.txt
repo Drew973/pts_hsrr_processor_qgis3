@@ -1,0 +1,27 @@
+drop table if exists fitted;
+
+--only really need run,f_line,sec,xsp,reversed,sec_ch,sfc
+--can look up rest from r
+
+
+create table fitted (
+run varchar,
+ch float,
+reversed bool,
+gn float,
+f_line int,
+speed float,
+pt geometry('Point',27700),
+vect geometry('Linestring',27700),
+sec varchar,
+xsp varchar,
+sec_ch float,
+sfc float,
+pk serial primary key
+);
+
+create index on fitted(run);
+create index on fitted(sec);
+create index on fitted(reversed);
+create index on fitted(xsp);
+create index on fitted(sec_ch);		

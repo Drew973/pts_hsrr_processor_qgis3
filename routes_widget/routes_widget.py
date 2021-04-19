@@ -84,8 +84,8 @@ class routes_widget(QWidget,rw):
 
         self.run_box.currentIndexChanged.connect(self.run_changed)
 
-        self.dd.reconnected.connect(self.reconnect)
-        dd.data_changed.connect(self.refresh_runs)
+        #self.dd.reconnected.connect(self.reconnect)
+        #dd.data_changed.connect(self.refresh_runs)
 
         self.init_top_menu()
 
@@ -247,7 +247,7 @@ class routes_widget(QWidget,rw):
 
     def refit_all(self):
         if self.check_connected():
-            self.dd.refit_runs(self.dd.get_runs())  
+            self.dd.refit_all()  
             self.refit.emit()
 
 
@@ -406,7 +406,7 @@ class routes_widget(QWidget,rw):
             for i in ids:
                 ids2+=i
                 
-            #r_layer.setSelectedFeatures(ids2)#qgis2
+           # r_layer.setSelectedFeatures(ids2)#qgis2
             r_layer.selectByIds(ids2)#qgis3
             layer_functions.zoom_to_selected(r_layer)
 

@@ -1,4 +1,4 @@
-from .database_dialog.database_dialog import database_dialog
+from .database_dialog.database_interface import database_interface
 
 import io
 
@@ -10,11 +10,11 @@ import os
 
 
 '''
-subclass of database_dialog specific to hsrr processor.
+subclass of database_interface specific to hsrr processor.
 
 '''
 
-class hsrr_dd(database_dialog):
+class hsrr_dd(database_interface):
 
 
 #',' in note column is problem. fix with quote charactors?
@@ -43,21 +43,21 @@ class hsrr_dd(database_dialog):
         
 
     def setup_database(self):
-        self.sql('create extension if not exists postgis;')
-        self.sql('CREATE SCHEMA if not exists hsrr;')
-
-
-        folder=os.path.join(path.dirname(__file__),'sql_scripts','setup_database')
-        with open(os.path.join(folder,'setup.txt')) as f:
-            for c in f.read().split(';'):
-                com=c.strip()
-                if com:
-                    self.sql_script(os.path.join(folder,com))
+        f = os.path.join(os.path.dirname(__file__),'database')
+        self.run_setup_file(folder=f,file='setup.txt')
       
 
     def autofit_run(self,run):
         self.sql('select hsrr.autofit_run(%(run)s)',{'run':run})
 
+
+    def is_uploaded(self,file):
+        r=self.sql('select run from hsrr.run_info where file=%(file)s;',{'file':file},ret=True)
+       # print(r)
+        if r:
+            return True
+        else:
+            return False
     
     def upload_run_csv(self,f):
         try:
@@ -89,7 +89,7 @@ class hsrr_dd(database_dialog):
         if r[0]['c']>0:
             return True
 
-    #add charactors to ref until unique(ie_run doesn't exist)
+    #add charactors to ref until unique(ie run doesn't exist)
     def generate_run_name(self,ref):
         if not self.run_exists(ref):
             return ref

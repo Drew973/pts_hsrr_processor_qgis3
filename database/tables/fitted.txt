@@ -1,0 +1,26 @@
+
+
+
+create table if not exists hsrr.fitted
+(
+pk serial primary key,
+sec varchar references network(sec) on delete cascade on update cascade,
+reversed bool,
+xsp varchar,
+run varchar references hsrr.run_info(run) on delete cascade on update cascade,
+f_line int,
+vect geometry('linestring',27700),
+s_ch float,
+e_ch float,
+rl float,
+rg int4range
+);
+
+
+create index if not exists vect_ind on hsrr.fitted using gist(vect);
+create index if not exists rg_ind on hsrr.fitted using gist(rg);
+create index if not exists sec_ind on hsrr.fitted(sec);
+create index if not exists xsp_ind on hsrr.fitted(xsp);
+create index if not exists rev_ind on hsrr.fitted(reversed);
+
+
