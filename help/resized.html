@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+
+<html>
+<title>hsrr processor help</title>
+
+<head>  
+ <link rel="stylesheet" type="text/css" href="styles.css"/>
+</head>  
+
+
+<div class="navbar_div">
+	<iframe src="navbar.html?parent=resized.html" class="navbar_iframe" name="contents" >
+	<p>Your browser does not seem to support iframes.</p>
+	</iframe>
+<div>
+
+
+
+<div class="main_div">
+	<body>
+		<h3 id="readings table">Resized Table</h3>
+
+		<p>Table containing results. These are 100m segments of requested sections,directions,xsps</p>
+
+		<ul>
+			<li>sec:section label</li>
+			<li>reversed:True if survey is in opposite direction to section</li>
+			<li>xsp</li>
+			<li>s_ch: section chainage of start of segment</li>
+			<li>e_ch: section chainage of end of segment</li>
+			<li>pks: which rows of fitted table are in segment</li>
+			<li>RL:final value. Weighted mean of vals (weighted by lengths)</li>
+			<li>vals:RL values from fitted where length overlaps segment</li>
+			<li>lengths:overlapping length of segment and reading. Same order as vals.</li>
+			<li>geom: linestring geometry of segment</li>
+		</ul>
+
+
+
+ 	<p> Created as:<p>
+	<object data="../database/tables/resized.txt" type="text/plain" typemustmatch="" width="500" style="height: 300px"></object>
+	</p>
+ 
+
+	</body>
+
+</div>
+
+</html>

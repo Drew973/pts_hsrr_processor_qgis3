@@ -1,9 +1,6 @@
 CREATE OR REPLACE FUNCTION meas_len(sect varchar) RETURNS float AS
 'SELECT cast(meas_len as float) from hsrr.network where sec=sect' LANGUAGE sql IMMUTABLE;
 
-CREATE OR REPLACE FUNCTION road(sect varchar) RETURNS varchar AS
-'SELECT road from hsrr.network where sec=sect' LANGUAGE sql IMMUTABLE;
-
 CREATE OR REPLACE FUNCTION is_rbt(sect varchar) RETURNS bool AS
 'SELECT rbt from hsrr.network where sec=sect' LANGUAGE sql IMMUTABLE;
 

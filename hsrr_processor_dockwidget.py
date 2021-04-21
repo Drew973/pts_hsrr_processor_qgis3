@@ -94,7 +94,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
 
 #opens help/index.html in default browser
     def open_help(self):
-        help_path=os.path.join(os.path.dirname(__file__),'help','index.html')
+        help_path=os.path.join(os.path.dirname(__file__),'help','overview.html')
         help_path='file:///'+os.path.abspath(help_path)
         QDesktopServices.openUrl(QUrl(help_path))
         

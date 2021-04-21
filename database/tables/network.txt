@@ -5,10 +5,7 @@ create table if not exists hsrr.network
 	buff geometry('polygon',27700),
 	meas_len float,
 	one_way bool,
-	road varchar,
 	rbt bool,
-	gtest_benchmark bool,
 	direction varchar,
-	left_lanes varchar[],
 	funct varchar
     );

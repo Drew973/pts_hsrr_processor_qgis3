@@ -1,61 +1,82 @@
 <!DOCTYPE html>
+
 <html>
-    <head>
-        <title>fitting</title>
-    </head>
-    <body>
+<title>hsrr processor help</title>
+
+<head>  
+ <link rel="stylesheet" type="text/css" href="styles.css"/>
+</head>  
+
+
+<div class="navbar_div">
+	<iframe src="navbar.html?parent=fitting.html" class="navbar_iframe" name="contents" >
+	<p>Your browser does not seem to support iframes.</p>
+	</iframe>
+<div>
+
+
+
+
+<div class="main_div">
+<body>
 
 
         <h3 id="fitting">Fitting</h3>
 
-		<p>The <a href="routes.html">routes table </a> defines which section/direction/xsp readings ( <a href="r.html">table r</a> ) are in. The fitting tab contains tools for editing it. <p>
+		<p>The routes table is used to fit <a href="readings.html">readings</a>  to a section,direction,xsp and section chainage. The fitting tab contains tools for editing it. <p>
+
+
+		<h4 id="routes table">Routes table</h4>
+		<p>The routes table contains the following columns</p>
+		<ul>
+		
+		<li>sec:section label. Needs to be in <a href="network.html">network</a> </li>
+		<li>reversed: if survey is in opposite direction to section.</li>
+		<li>xsp</li>
+		<li>run:needs to be in <a href="run_info.html">run_info</a>.</li>
+		<li>s,e=f_line where run enters/leaves section. </li>
+		<li>note=note for benefit of person fitting. Autofit adds rows with note of 'auto'.</li>
+		<li>pk=primary key.</li>
+		<li>start_sec_ch,end_sec_ch: Section chainages(in direction of section) where run enters/leaves section. Can be used to calculate section chainage.</li>
+		</ul>
+
 
 		<p>Readings in run with s<=f_line<=e are fit to sec,reversed,xsp<p>
-
-		<p>start_sec_ch and end_sec_ch only need to be set where the gps is inaccurate. They are the section chainages (in direction of section) where the route enters/leaves the section.Where they are valid (>=0)they are used to calculate section chainages of readings.<p>
-		<p>  Otherwise the closest point of the section to the reading is used.<p>
 		<p>The notes column is for the benefit of the person fitting. Autofit will insert rows with a note of 'auto'. <p>
+		<p>Files sometimes contain repeated chainages. f_line is used for fitting because it is unique(within the run) and increases in direction of survey.</p>
+
+
 		
+		<h4 id="sec_ch">Section Chainage</h4>
+			<p>Section chainage is usually calculated from the nearest point on the section to the reading.</p>
+			<p>Where start_sec_ch and end_sec_ch are set and >0 section chainage is calculated by interpolating between these.<p>
+			<p>This should be done where the nearest point of the section is not at the correct chainage.</p>
+			<p>This is important where the GPS has lost signal and for small roundabouts (that readings are closer to wrong side of). </p>
+
+		
+	<h4 id="autofit">Autofit</h4>
+		<P>Click the autofit button to automatically create the route for the selected run. It is likely to make mistakes where:<P>
+		<ul>
+		<li>The nearest section to a reading is not the correct one </li>
+		<li>The gps is inaccurate </li>
+		<li>The network is inaccurate </li>
+		</ul>
+		<P>Autofit does not work out xsp. Do this by manually or with update statement (update routes set xsp='CL1' where not reversed; update routes set xsp='CR1' where reversed;).</P>
+		<P> Autofit adds rows for each section near to and in the correct direction for the readings.</p>
 
 
 	<h4 id="fitting">How to use</h4>
-		<P>Click the autofit button to automatically create the route for the selected run. It is likely to make mistakes where:<P>
-
-		<P> -The nearest section to a reading is not the correct one <P>
-		<P> -The gps is inaccurate <P>
-		<P> -The network is inaccurate <P>
-
-
-		<P>Autofit does not work out xsp. Do this by manually or with update statement (update routes set xsp='CL1' where not reversed; update routes set xsp='CR1' where reversed;).<P>
-
-
-		<p> Set start_sec_ch and end_sec_ch column where the gps is inaccurate. This will be important for tunnels and small roundabouts (that readings are closer to wrong side of).  <p>
-
-		<p> Rows with a yellow background have have a gap and should be checked. <p>
-		<p> Rows with a red background overlap by more than 1 reading and are probabaly wrong.<p>
-
-		<p>Click on refit run or refit all to update the fitted table and the resized table.<p>
-
-        <h4 id="initial_fit">Initial fit</h4>
-
-		<p> Table <a href="fitted.html">fitted</a> is created by joining  readings( <a href="r.html">table r</a> ) to the <a href="routes.html">routes table</a> <p>
-
-		
-        <h4 id="correcting for season">Correcting for Season</h4>
-
-		<p> Where the section is marked as a benchmark in <a href="network.html">network</a> and the run is marked as a benchmark in <a href="run_info.html">run_info</a>
-		readings from fitted are inserted into the <a href="benchmarks.html">benchmarks table</a>.
-		The benchmarks table is used to calculate <a href="correction_factors.html">seasonal correction factors</a>.
-		These correction factors and season from <a href="run_info.html">run_info</a> are used to update fitted, calculating sfc from gn.
-		<p>
-
-
-        <h4 id="resizing">Resizing</h4>
-
-		<p> Table <a href="resized.html">resized</a> is made by joining <a href="fitted.html">fitted</a> to 10m <a href="pieces.html">pieces</a> of requested sections.
-			sfc is calculated as the mean sfc of all readings with section chainage within range. When there are no readings in range readings from 10m either side are used.
-		<p>
-
+		<ul>
+		<li>Autofit the route.</li>
+		<li>Manually remove any mistakes.</li>
+		<li>Rows with a yellow background have have a gap and should be checked. </li>
+		<li>Rows with a red background overlap by more than 1 reading and are probably wrong.</li>
+		<li>Right clicking a row then "select on layers" is a quick way to check a row.</li>
+		<li>Process the run.</li>
+		</ul>
 
 	</body>
+
+</div>
+
 </html>

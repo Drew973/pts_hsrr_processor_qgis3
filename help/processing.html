@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+
+<html>
+<title>hsrr processor help</title>
+
+<head>  
+ <link rel="stylesheet" type="text/css" href="styles.css"/>
+</head>  
+
+
+<div class="navbar_div">
+	<iframe src="navbar.html?parent=processing.html" class="navbar_iframe" name="contents" >
+	<p>Your browser does not seem to support iframes.</p>
+	</iframe>
+<div>
+
+
+
+<div class="main_div">
+	<body>
+
+		<h3 id="processing">Processing</h3>
+		<p>Data is processed in the following stages:</p>
+
+       <h4 id="fitting">Fitting</h4>
+			<p> The <a href="routes.html">routes table</a> is used to fit <a href="readings.html">readings</a> to a section,direction,xsp and section chainage;creating the <a href="fitted.html">fitted table</a>. </p>
+
+  
+
+        <h4 id="resizing">Resizing</h4>	
+		<p> The <a href="resized.html">resized_table</a> table is created from 100m segments of every section,direction and xsp in the requested table.</p>
+		<p> The RL in the resized table is calculated as the weighted(by overlap) mean rl of all readings overlapping the 100m range.</p>
+
+	
+
+ 
+
+	</body>
+
+</div>
+
+</html>

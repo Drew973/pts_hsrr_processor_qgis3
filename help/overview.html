@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+
+<html>
+<head>  
+ <link rel="stylesheet" type="text/css" href="styles.css"/>
+</head>  
+
+<title>hsrr processor help</title>
+
+<body>
+
+<div class="navbar_div">
+	<iframe src="navbar.html?parent=overview.html" class="navbar_iframe" name="contents" >
+	<p>Your browser does not seem to support iframes.</p>
+	</iframe>
+<div>
+
+
+
+<div class="main_div">
+		<body>
+        <h3 id="home">Overview</h3>
+
+        <p>Database(Postgres ) based tool for processing hsrr readings.
+		<ul>
+
+		<li>Fits readings to network.</li>
+		<li>Splits requested sections of network into 100m pieces and finds average values</li>
+		<li>Output is in <a href="resized.html"> resized table</a> </li>
+		</ul>
+
+
+        <h3 id="use">How to Use</h3>
+		<h4>Under 'setup':</h4>
+		<ul>
+		<li>Connect to a database</li>
+		<li><a href="database_setup.html">Setup the database</a> if this has not already been done.</li>
+		<li>The network is in table <a href="network.html">network</a>. Import this into qgis then set network layer to this.</li>
+		<li>Import the <a href="readings.html">readings table</a> into qgis then set readings layer to this.</li>
+		</ul>
+
+		<h4>Under 'upload':</h4>
+		<ul>
+		<li>Upload the readings</li>
+		</ul>
+
+		<h4>Under 'fitting':</h4>
+		<ul>
+		<li>Fit readings to network.(see <a href="fitting.html">fitting</a> )</li>
+		</ul>
+
+
+		<h4>Under 'lengths and missing':</h4>
+		<ul>
+		<li> Check missing sections.</li>
+		</ui>
+
+    </body>
+
+</div>
+
+</html>

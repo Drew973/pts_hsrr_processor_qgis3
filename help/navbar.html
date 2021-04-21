@@ -1,0 +1,107 @@
+
+<!DOCTYPE html>
+
+<style>
+
+.sidenav {
+	height: 100%;
+	width: 300px;
+	position: fixed;
+	z-index: 1;
+	top: 0;
+	left: 0;
+	background-color: #b9d9eb;
+	overflow-x: hidden;
+	padding-top: 20px;
+	font-size: 20px;
+	list-style-type: none;
+
+}
+
+.sidenav a {
+  padding:  6px 6px 16px;
+  text-decoration: none;
+  font-size: 25px;
+  color: #818181;
+  display: block;
+}
+
+.sidenav a:hover {
+  color: #f1f1f1;
+}
+
+.active {
+    color:            #ffff00;
+    background-color: #00ff00;
+}
+</style>
+
+
+<div class="sidenav">
+<body>
+	<nav id=nav>
+		<ul style="list-style-type: none;margin-left: 0,padding-left: 0">
+			<li><a href="overview.html" target="_parent">Overview</a></li>
+			<li><a href="connect.html" target="_parent">Setup tab</a></li>
+			<li><a href="upload.html" target="_parent">Upload Readings</a></li>
+			<li><a href="fitting.html" target="_parent">Fit to Network</a></li>
+			<li><a href="processing.html" target="_parent">Processing</a></li>
+			<li><a href="coverage.html" target="_parent">Coverage</a></li>
+			<li><a href="output.html" target="_parent">Output</a></li>
+			<li><a href="database_setup.html" target="_parent">Setting up Database</a></li>
+
+
+		</ul>
+
+		<p>Tables:</p>
+			<ul>
+			<li><a href="network.html" target="_parent">Network</a></li>
+			<li><a href="requested.html" target="_parent">Requested</a></li>
+			<li><a href="readings.html" target="_parent">Readings</a></li>
+			<li><a href="fitted.html" target="_parent">Fitted</a></li>
+			<li><a href="resized.html" target="_parent">Resized</a></li>
+			<li><a href="run_info.html" target="_parent">Run_info</a></li>
+			</ul>
+	</nav>
+
+
+  <script>
+//this gets called every time page containing iframe loaded
+//no messages appear for errors. use debugger.
+	//var urlParams = new URLSearchParams(window.location.search);
+	//console.log(urlParams.get('parent'))//set parent GET parameter/query string in src of iframe
+
+
+	//console.log(new URLSearchParams(window.location.search).get('parent'))//set parent GET parameter/query string in src of iframe
+
+//'parent' parameter is passed from parent page
+	function getParent()
+		{
+		//return new URLSearchParams(window.location.search).get('parent');
+		t=new URLSearchParams(window.location.search).get('parent')
+		//return new URL(t).href
+		var link = document.createElement("a");
+		link.href = t
+		return link.href
+	}
+
+
+	links = document.getElementById("nav").getElementsByTagName('a')
+	console.log(links)
+
+	parent=getParent()
+	console.log(parent)
+
+	for (i = 0; i < links.length; i++) 
+		{
+		if (links[i].href===parent)
+			{
+			links[i].className='active'
+			}
+		}
+
+
+  </script>
+
+</body>
+<div>
