@@ -1,6 +1,11 @@
 upload folder not working?
 
 
+map matching techniques
+
+have Dijkstra's algorithm in plpgsql
+
+
 fitting to lrs:
 
 	already have limited number of options per point (ps). need way to choose best one.
@@ -30,88 +35,89 @@ fitting to lrs:
 
 
 
+create array of sec_revs in consecutive order then add to route using array_cluster and number of times element appeared previously
 
-roundabouts problem with 100m spaced readings
 
-how to make choices exclusive?
+adding sec_revs to routes not easy...:
+	getting s_line and e_line for sec_rev?
+	have in readings...
 
-insert pieces 1 by 1?
-go to point after e_line of last piece.
 
-sec/rev in ps of point
+treat f_line as float.
+then
+round s_line down and e_line up.
 
-each piece goes from e_line of last piece to e_line of ps?
+
+
+junctions where ps changes.
+junctions should mostly be near end of a section.
+Can easily get section linking 2 junctions. geom within x m of both junctions
+because size of buffers small compared to distance between readings junction will be within 1 row of readings
+
+rows of routes unlikely to be too long.
+
+
+
+	create type opt (sr sec_rev,rg numrange)
+	ps of readings to opt[] using array_cluster
+	adjust(opt):
+		nearest f_line of readings within run and opt to (opt).sr start_point   f_line+ST_LineLocatePoint
+	have array of fitting opts.
+
+	
+
+
+
+in graph theory terms each opt(sec,rev,s_line,e_line) is edge and each f_line of readings is node/vertex. can be solved by Djecstra's algorithm.
+
+
+
+each node can only be linked to nodes with larger f_line. and continuous ps. and continuous on network
+
+
+
+could simplify to highest f_line in adjoining ps
+
+cost? start_dist+end_dist is good indicator.
+probably not worth implementing
+
+
+
+
+
+create array from all possible sec_rev in route then filter.?
+assume array will contain all correct sections.
+filter with decision tree.
+
+
+select st_union(st_buffer(st_startPoint(geom),20)) from network
+
+
+use geometry to filter?
+remove if not (	geom of last sec_rev within x m of geom of sec_rev and geom within x m of next geom)
+
+
+
+each reading to only 1 sec_rev?
+
+
+link all reading with only 1 sec_rev?
+setting up every client network to routable could be massive PTA. Problems with gaps,missing nodes...
+Topological errors
+
+
+raw_chainage does strange things for hsrr.
 
 
 
 or insert all possible pieces then find where conflict and remove the less likely option. 
+should have only false positives.
+s_line and e_line likely accurate because reading spacing>>buffer size
 
 
+consider filtering where
+	overlaps another row by more than 1 f_line
+	and metric poor
 
 
-regexp_replace(file, '^.+[/\\]', '') ro get filename
-
-
-
-piece angle seems to be best metric.
-function to choose best option.
-highest piece_angle.
-returns piece type.
-
-
-CREATE OR REPLACE FUNCTION hsrr.av_dist(rn varchar,sect varchar,s_line int,e_line int)
-RETURNS float AS $$	
-	declare
-		geom geometry('linestring')=(select geom from hsrr.network where hsrr.network.sec=sect);
-
-    BEGIN
-		
-		return avg(st_distance(vect,geom)) from hsrr.readings as r where r.run=rn and s_line<=f_line and f_line<=e_line;
-	
-    END;			
-$$ LANGUAGE plpgsql;
-							   				   
-							   
-							   
-CREATE OR REPLACE FUNCTION hsrr.piece_cov(rn varchar,sect varchar,s_line int,e_line int)
-RETURNS float AS $$	
-	declare
-		mn float=min(meas_sec_ch(sect,s_point)) from hsrr.readings as r where r.run=rn and s_line<=f_line and f_line<=e_line;
-
-		ma float=max(meas_sec_ch(sect,e_point)) from hsrr.readings as r where r.run=rn and s_line<=f_line and f_line<=e_line;
-		
-    BEGIN
-		return abs(ma-mn);
-    END;			
-$$ LANGUAGE plpgsql;
-
-
-
-
-
-							   										 
-CREATE OR REPLACE FUNCTION hsrr.piece_angle(rn varchar,sect varchar,rev bool,s_line int,e_line int)
-RETURNS float AS $$	
-	declare
-		geom geometry('linestring')=(select geom from hsrr.network where hsrr.network.sec=sect);
-		g geometry;
-		s geometry('Point');
-		e geometry('Point');
-										  
-    BEGIN
-																									   
-																										   
-		if rev then
-			s=(select s_point from hsrr.readings as r where r.run=rn and r.f_line=s_line);
-			e=(select e_point from hsrr.readings as r where r.run=rn and r.f_line=e_line);
-		else
-			s=(select e_point from hsrr.readings as r where r.run=rn and r.f_line=e_line);
-			e=(select s_point from hsrr.readings as r where r.run=rn and r.f_line=s_line);
-		end if;
-			   
-		g=st_makeLine(st_closestPoint(geom,s),st_closestPoint(geom,e));
-		return cos_angle(g,st_makeLine(s,e));																																			
-										  
-    END;			
-$$ LANGUAGE plpgsql;
-												
+regexp_replace(file, '^.+[/\\]', '') to get filename

@@ -1,10 +1,14 @@
 from .database_dialog.database_interface import database_interface
 
+from .database_dialog import sql_task
+
 import io
 
 #import psycopg2
 from psycopg2.extras import DictCursor,execute_batch
 from qgis.PyQt.QtSql import QSqlQuery
+from qgis.utils import iface
+
 
 import os
 
@@ -16,26 +20,27 @@ subclass of database_interface specific to hsrr processor.
 
 class hsrr_dd(database_interface):
 
+    def __init__(self,db):
+        super().__init__(db)
+        self.prefix='hsrr processor:'
 
 #',' in note column is problem. fix with quote charactors?
     def upload_route(self,csv):
         with open(csv,'r') as f:
-            self.cur.copy_expert('copy hsrr.routes from STDIN with CSV HEADER',f)
-            #c.copy_from(f,'routes',sep=',')
-            self.con.commit()
+            with self.get_con() as con:
+                if con:
+                    con.cursor().copy_expert('copy hsrr.routes from STDIN with CSV HEADER',f)
             
 #to is str
     def download_route(self,to,run):
-        #self.query_to_csv(query='select * from routes order by run,s',to=s,force_quote='(run,sec,note)')
-        q="COPY (select * from hsrr.routes where run=%s) TO STDOUT WITH (FORMAT CSV,HEADER,FORCE_QUOTE(run,sec,note),null '')"%(run)
+        q="COPY (select * from hsrr.routes where run='%s') TO STDOUT WITH (FORMAT CSV,HEADER,FORCE_QUOTE(run,sec,note),null '')"%(run)
         with open(to,'w') as f:
-            self.cur.copy_expert(q,f)
+            self.get_cur().copy_expert(q,f)
         
 
     def download_routes(self,to):
-        #self.query_to_csv(query='select * from routes order by run,s',to=s,force_quote='(run,sec,note)')
         with open(to,'w') as f:
-            self.cur.copy_expert("COPY hsrr.routes TO STDOUT WITH (FORMAT CSV,HEADER,FORCE_QUOTE(run,sec,note),null '')",f)
+            self.get_cur().copy_expert("COPY hsrr.routes TO STDOUT WITH (FORMAT CSV,HEADER,FORCE_QUOTE(run,sec,note),null '')",f)
         
 
     def remove_slips(self,run):
@@ -107,14 +112,16 @@ class hsrr_dd(database_interface):
         self.sql("delete from hsrr.run_info where run=any(%(runs)s::varchar[])",{'runs':runs})
 
 
-    def refit_run(self,run):
-        q='select hsrr.refit_run(%(run)s);select hsrr.resize_run(%(run)s);'
-        self.cancelable_query(q=q,args={'run':run},text='refitting run:'+run,sucess_message='grip tester tool:refit run:'+run)
+
+    def process_run(self,run):
+        self.run_cancelable_query(query='select hsrr.process(%(run)s)',args={'run':run},description='processing run '+run)
+        #iface.messageBar().pushMessage('%s: processed run %s'%(self.prefix,run))
 
 
-    def refit_runs(self,runs):        
-        self.cancelable_queries(queries=['select hsrr.refit_all();','select hsrr.resize_all();'],args=None,text='refitting all runs',sucess_message='grip tester tool:refit runs')
-        
+    def process_all(self):
+        self.run_cancelable_query(query='select hsrr.process()',description='processing all runs')
+        #iface.messageBar().pushMessage('%s: processed all runs'%(self.prefix))
+
         
     def get_runs(self):
         q=QSqlQuery(db=self.db)
@@ -123,6 +130,17 @@ class hsrr_dd(database_interface):
         while q.next():
             runs.append(q.value(0))
         return runs
+
+
+    def sects_to_routes_pk(self,sects):
+        q = "select pk from hsrr.routes where sec=any('{%s}'::varchar[])"%(','.join(sects))
+        return [r[0] for r in self.sql(q,ret=True)]
+
+
+    def f_lines_to_routes_pk(self,f_lines):
+        q = "select distinct pk from unnest('{%s}'::int[]) inner join hsrr.routes on s_line<=unnest and unnest<=e_line"%(','.join([str(f_line) for f_line in f_lines]))
+        return [r[0] for r in self.sql(q,ret=True)]
+    
 
 #'sec':self.sec.text(),'rev':self.rev.isChecked(),'xsp':self.xsp.text(),'s':self.s_ch.value(),'e':self.e_ch.value(),'note':self.note.text(),'run':self.run_box.currentText()
 

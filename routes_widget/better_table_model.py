@@ -36,6 +36,16 @@ class betterTableModel(QSqlTableModel):
         self.colsEditable[col]=editable
 
 
+#returns rows of indexes where col=val
+#col is int
+#fieldIndex to get int from name?
+        
+    def findRows(self,vals,col,role=Qt.EditRole):
+        if isinstance(col,str):
+            col = self.fieldIndex(col)
+        return [r for r in range(self.rowCount()) if self.index(r,col).data(role) in vals]
+  
+
 #set all editiaility of all columns to editable
     def setEditable(self,editable):
         for k in self.colsEditable:

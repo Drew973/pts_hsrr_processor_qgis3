@@ -1,4 +1,4 @@
-drop table hsrr.staging;
+drop table if exists hsrr.staging;
 
 create table hsrr.staging(
 raw_ch float,

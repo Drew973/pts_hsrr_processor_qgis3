@@ -1,9 +1,19 @@
-CREATE OR REPLACE FUNCTION array_distinct(anyarray) 
+CREATE OR REPLACE FUNCTION array_distinct(a anyarray) 
 RETURNS anyarray AS $$
 	BEGIN
-		return array(select distinct unnest(arr));
+		return array(select distinct unnest(a));
 	END;			
 $$ LANGUAGE plpgsql;
+
+
+--returns duplicated elements
+CREATE OR REPLACE FUNCTION array_duplicates(a anyarray) 
+RETURNS anyarray AS $$
+	BEGIN
+		return array(select unnest from unnest(a) group by unnest having count(unnest)>1);
+	END;			
+$$ LANGUAGE plpgsql;
+
 
 
 CREATE OR REPLACE FUNCTION array_min(anyarray) RETURNS anyelement AS
@@ -14,28 +24,22 @@ CREATE OR REPLACE FUNCTION array_max(anyarray) RETURNS anyelement AS
 'SELECT max(i) FROM unnest($1) i' LANGUAGE sql IMMUTABLE;
 
 
-CREATE OR REPLACE FUNCTION array_multiply(a numeric[],b numeric[]) 
-RETURNS numeric[] AS $$
-	 BEGIN	
-	 	return array(select unnest(a) * unnest(b));
-	END;			
-$$ LANGUAGE plpgsql;															   
+DROP FUNCTION if exists array_multiply(anyarray,anyarray);
 
-
-CREATE OR REPLACE FUNCTION array_multiply(a int[],b int[]) 
-RETURNS int[] AS $$
+--multiplies a[i] by b[i]. Does not check lengths.
+--not matrix multiplication
+CREATE OR REPLACE FUNCTION array_multiply(a anyarray,b anyarray) 
+RETURNS anyarray AS $$
 	 BEGIN	
 	 	return array(select unnest(a) * unnest(b));
 	END;			
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION array_mean(a float[]) 
-RETURNS float AS $$
-	DECLARE
-		s float=sum(b) from unnest(a) b;
+CREATE OR REPLACE FUNCTION array_mean(a anyarray) 
+RETURNS anyelement AS $$
 	 BEGIN	
-	 	return s/cardinality(a);
+	 	return AVG(unnest) from unnest(a);
 	END;			
 $$ LANGUAGE plpgsql;
 
@@ -47,13 +51,42 @@ CREATE OR REPLACE FUNCTION array_sort_asc(a anyarray) RETURNS anyarray AS
 CREATE OR REPLACE FUNCTION array_sort_desc(a anyarray) RETURNS anyarray AS
 'SELECT array(select unnest from unnest(a) order by unnest desc)' LANGUAGE sql IMMUTABLE;											   
 											   
-CREATE OR REPLACE FUNCTION array_sum(a int[]) 
-RETURNS int AS $$
+
+
+CREATE OR REPLACE FUNCTION array_sum(a anyarray) 
+RETURNS anyelement AS $$
 	 BEGIN	
 	 	return sum(b) from unnest(a) b;
 	END;			
 $$ LANGUAGE plpgsql;
-									 
+
+
+--return elememts before i where value=a[i]
+CREATE OR REPLACE FUNCTION previous_instances(a anyarray, i int) 
+RETURNS anyarray AS $$
+	 BEGIN	
+	 	return array(select unnest from unnest(a[0:i-1]) where unnest=a[i]);
+	END;			
+$$ LANGUAGE plpgsql;	
+
+
+--clump elements within tol together. returns array of arraye
+
+CREATE OR REPLACE FUNCTION array_cluster(a numeric[],tol numeric) 
+RETURNS numeric[][] AS $$
+	Declare
+		gaps numrange[];
+
+	 BEGIN	
+	 	return null;
+		--unnest from unnest(a);
+			
+		raise notice 'gaps:%',gaps;
+	END;			
+$$ LANGUAGE plpgsql;
+
+
+
 
 --make array into ranges of values separated by dist		
 --[] type range. upper will be 1 too high

@@ -19,3 +19,25 @@ create or replace function get_pieces(sect varchar)
 	$$
 	language plpgsql;
 	
+
+alter function get_pieces(sect varchar)  set search_path to hsrr,public;
+
+
+
+
+
+create or replace function get_pieces(sections varchar[]) 
+	returns table (sect varchar,s_ch float,e_ch float)
+	as $$
+	BEGIN
+		return QUERY
+		select unnest as sec,(pieces).s_ch,(pieces).e_ch from (select unnest,get_pieces(unnest) as pieces from unnest(sections))a;
+	END;
+	$$
+	language plpgsql;
+
+
+
+
+
+

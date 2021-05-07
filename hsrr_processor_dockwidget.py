@@ -49,6 +49,8 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
 
         self.connect_button.clicked.connect(self.connect)
         self.dd=None
+        self.rw=routes_widget(self,self.dd,'hsrr.routes',self.readings_box,self.network_box,self.run_fieldbox,self.f_line_fieldbox,self.sec_fieldbox)
+        self.rw_placeholder.addWidget(self.rw)
         self.prepare_database_button.clicked.connect(self.prepare_database)
           
 
@@ -66,15 +68,13 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         db=database_dialog(self).exec_()
         try:
             self.dd=hsrr_processor_dd.hsrr_dd(db)
-            self.rw=routes_widget(self,self.dd,'hsrr.routes',self.readings_box,self.network_box,self.run_fieldbox,self.f_line_fieldbox,self.sec_fieldbox)
-            self.rw_placeholder.addWidget(self.rw)
-            self.rw.refit.connect(lambda:print('refit'))
-        
+            self.rw.connect_to_dd(self.dd)
             self.dd.sql('set search_path to hsrr,public;')
             self.database_label.setText('Connected to %s'%(db.databaseName()))
             self.connect_run_info()
             self.connect_coverage()
             self.refresh_run_info()
+
             
         except Exception as e:
             iface.messageBar().pushMessage("could not connect to database. %s"%(str(e)),duration=4)
@@ -145,7 +145,8 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             
         
     def closeEvent(self, event):
-        self.dd.disconnect()        
+        if self.dd:
+            self.dd.disconnect()        
         self.closingPlugin.emit()
         event.accept()
                 
@@ -190,6 +191,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             if i==QMessageBox.Yes:
                 self.dd.setup_database()
                 iface.messageBar().pushMessage('fitting tool: prepared database')
+                self.rw.connect_to_dd(self.dd)
 
 
     #drop selected run of run_info table

@@ -19,6 +19,10 @@ from qgis.core import QgsMapLayerProxyModel
 from qgis.PyQt import uic,QtGui
 from qgis.PyQt.QtSql import QSqlQuery
 
+from PyQt5.Qt import QItemSelectionModel
+
+
+
 
 from PyQt5.QtWidgets import QComboBox
 # makes qComboBox b searchable
@@ -56,20 +60,20 @@ class routes_widget(QWidget,rw):
     refit = pyqtSignal()
 
     
-    #readings_box and network box are pre existing qgsmapLayerComboboxes. fieldboxes are preexisting. dd is database dialog.
-    def __init__(self,parent,dd,table,readings_box,network_box,run_fieldbox,f_line_fieldbox,sec_fieldbox):
+    #readings_box and network box are pre existing qgsmapLayerComboboxes. fieldboxes are preexisting. dd is database dialog or None.
+    def __init__(self,parent,dd,table,readings_box,network_box,run_fieldbox,f_line_fieldbox,sec_fieldbox,prefix='hsrr processor:'):
         super(QWidget,self).__init__(parent)
         self.setupUi(self)
-        self.dd=dd
-        self.table=table
+        self.dd = dd
+        self.table = table
+        self.prefix = prefix
+        self.run_fieldbox = run_fieldbox
+        self.f_line_fieldbox = f_line_fieldbox
+        self.sec_fieldbox = sec_fieldbox
         
-        self.run_fieldbox=run_fieldbox
-        self.f_line_fieldbox=f_line_fieldbox
-        self.sec_fieldbox=sec_fieldbox
-        
-        self.network_box=network_box
-        self.run_fieldbox=run_fieldbox
-        self.readings_box=readings_box
+        self.network_box = network_box
+        self.run_fieldbox = run_fieldbox
+        self.readings_box = readings_box
       
         self.readings_box.layerChanged.connect(lambda layer:set_to(layer=layer,fb=self.run_fieldbox,name='run'))
         self.readings_box.layerChanged.connect(lambda layer:set_to(layer=layer,fb=self.f_line_fieldbox,name='f_line'))
@@ -84,7 +88,6 @@ class routes_widget(QWidget,rw):
 
         self.run_box.currentIndexChanged.connect(self.run_changed)
 
-        #self.dd.reconnected.connect(self.reconnect)
         #dd.data_changed.connect(self.refresh_runs)
 
         self.init_top_menu()
@@ -95,7 +98,26 @@ class routes_widget(QWidget,rw):
         set_layer_box_to(self.network_box,'network')
         set_layer_box_to(self.readings_box,'readings')
         make_searchable(self.run_box)        
+        self.route_model = None
 
+
+
+    def connect_to_dd(self,dd):
+        self.dd=dd
+        self.route_model=betterTableModel(db=self.dd.db)
+            
+        self.route_model.setColorFunction(color_functions.routes_color)
+        self.route_model.setTable(self.table) 
+        self.route_model.setEditStrategy(QSqlTableModel.OnFieldChange)
+        self.route_model.setSort(self.route_model.fieldIndex("s_line"),Qt.AscendingOrder)#sort by s
+            
+        self.route_view.setModel(self.route_model)
+        self.route_view.setColumnHidden(self.route_model.fieldIndex("run"), True)#hide run column
+        self.route_view.setColumnHidden(self.route_model.fieldIndex("pk"), True)#hide pk column
+
+        self.route_view.resizeColumnsToContents()
+        self.refresh_runs()
+        self.run_changed(self.run_box.currentIndex())
 
 
     def init_top_menu(self):
@@ -115,24 +137,24 @@ class routes_widget(QWidget,rw):
         refit_menu= self.top_menu.addMenu('Process')
         refit_menu.setToolTipsVisible(True)
         
-        self.refit_run_act=refit_menu.addAction('Process run')
-        self.refit_run_act.setToolTip('(Re)make fitted and resized tables for this run.')
-        self.refit_run_act.triggered.connect(self.refit_run)
+        self.process_run_act=refit_menu.addAction('Process run')
+        self.process_run_act.setToolTip('(Re)make fitted and resized tables for this run.')
+        self.process_run_act.triggered.connect(self.process_run)
         
         self.refit_all_act=refit_menu.addAction('Process all runs')
         self.refit_all_act.setToolTip('(Re)make fitted and resized tables for all runs.')
-        self.refit_all_act.triggered.connect(self.refit_all)
+        self.refit_all_act.triggered.connect(self.process_all)
     
         automake_menu= self.top_menu.addMenu('Automake')
         automake_menu.setToolTipsVisible(True)
 
         self.automake_act=automake_menu.addAction('Automake run')
-        self.automake_act.setToolTip("Automatically adds rows to route with note of 'Auto'. Keeps rows without note of 'Auto'. Will probabaly contain some mistakes.Likely to miss short (under ~30m) sections.")
+        self.automake_act.setToolTip("Automatically adds rows to route with note of 'Auto' .May remove rows note of 'Auto' .Adds all sections within distance and in correct direction. Likely to contain incorrect slip roads.")
         self.automake_act.triggered.connect(self.automake_run)                
 
         self.remove_slips_act=automake_menu.addAction('Remove slip roads')
         self.remove_slips_act.setToolTip("remove slip roads from this route")
-        self.remove_slips_act.triggered.connect(self.remove_slips)    
+        self.remove_slips_act.triggered.connect(self.remove_slips)
 
 
     def init_rows_menu(self):
@@ -179,36 +201,46 @@ class routes_widget(QWidget,rw):
         rows=[r.row() for r in self.route_view.selectionModel().selectedRows()]
         if rows:
             return min(rows)
+
       
     def show_rows_menu(self,pt):
         self.rows_menu.exec_(self.mapToGlobal(pt))
 
 
+
+    def pks_to_row(self,pks):
+        #start=self.route_model.index(0,self.route_model.fieldIndex("pk"))       
+        #inds=[self.route_model.match(start,Qt.EditRole,sec,hits=-1) for sec in sects]#items in column of start where data for role match
+        pass
+
+
+
+
+
     def select_from_layers(self):
-        sects=[f[self.sec_fieldbox.currentField()] for f in self.network_box.currentLayer().selectedFeatures()]
-        f_lines=[f[self.f_line_fieldbox.currentField()] for f in self.readings_box.currentLayer().selectedFeatures() if f[self.run_fieldbox.currentField()]==self.current_run()]
-        print(sects)
-        print(f_lines)
-
-        #indexes matching sects
-
-        self,
-        start=self.route_model.index(0,self.route_model.fieldIndex("sec"))
-        inds=self.route_model.match(start,Qt.EditRole,sec,hits=-1)
-        inds=self.route_model.match(role=Qt.EditRole,hits=-1)
-#match(const QModelIndex &, int , const QVariant &, int , Qt::MatchFlags ) const : QModelIndexList
+        pks=[]
 
 
-        rows=[i.row() for i in inds]
-        print(rows)
-        #self.route_model.index(row,sec_col)
-        #self.route_view.selectRow()
+        f_line_field = self.f_line_fieldbox.currentField()
+        run_field = self.run_fieldbox.currentField()
 
-        #item=self.table.findItems(sec,Qt.MatchExactly)[0] for qtableview
+        if f_line_field and run_field:
+            
+            f_lines=[f[f_line_field] for f in self.readings_box.currentLayer().selectedFeatures() if f[run_field]==self.current_run()]
+            print('f_lines: %s'%(f_lines))
+            pks+=self.dd.f_lines_to_routes_pk(f_lines)
+            
 
+        sec_field = self.sec_fieldbox.currentField()
+        if sec_field:
+            pks+=self.dd.sects_to_routes_pk([f[sec_field] for f in self.network_box.currentLayer().selectedFeatures()])
+        
+    
+        #selectRowsFromValues(self.route_view,self.route_model.fieldIndex('pk'),pks)
+        print('pks:%s'%(pks))
+        rows=self.route_model.findRows(pks,'pk')
+        select_rows(self.route_view,rows,True)
 
-
-        #self.routes_view.selectAll()?clearSelection
 
     def add_from_feats(self):
 
@@ -239,21 +271,24 @@ class routes_widget(QWidget,rw):
             iface.messageBar().pushMessage('fitting tool: Not connected to database')
             return False
 
-      
-    def select_rows(self):
-        for r in self.route_view.selectionModel().selectedRows():#indexes of column 0
-            self.select_row(r)
+    
 
 
-    def refit_all(self):
+#    def refit_all(self):
+  #      if self.check_connected():
+  #          self.dd.refit_all()  
+ #           self.refit.emit()
+
+
+    def process_run(self):
         if self.check_connected():
-            self.dd.refit_all()  
+            self.dd.process_run(self.run_box.currentText())
             self.refit.emit()
 
 
-    def refit_run(self):
+    def process_all(self):
         if self.check_connected():
-            self.dd.refit_run(self.run_box.currentText())
+            self.dd.process_all()
             self.refit.emit()
     
 
@@ -281,22 +316,6 @@ class routes_widget(QWidget,rw):
         self.route_model.select()
         iface.messageBar().pushMessage('fitting tool:removed slip roads.')        
 
-
-        
-    def reconnect(self):
-        self.route_model=betterTableModel(db=self.dd.db)
-        self.route_model.setColorFunction(color_functions.routes_color)
-        self.route_model.setTable(self.table) 
-        self.route_model.setEditStrategy(QSqlTableModel.OnFieldChange)
-        self.route_model.setSort(self.route_model.fieldIndex("s_line"),Qt.AscendingOrder)#sort by s
-        
-        self.route_view.setModel(self.route_model)
-        self.route_view.setColumnHidden(self.route_model.fieldIndex("run"), True)#hide run column
-        self.route_view.setColumnHidden(self.route_model.fieldIndex("pk"), True)#hide pk column
-
-        self.route_view.resizeColumnsToContents()
-        self.refresh_runs()
-        self.run_changed(self.run_box.currentIndex())
 
         
     #sets run_box
@@ -332,12 +351,11 @@ class routes_widget(QWidget,rw):
                 iface.messageBar().pushMessage('fitting tool: error uploading route:%s:%s'%(f,e),duration=5)
                # print 'fitting tool: error uploading route:%s:%s'%(f,e)
                 unsucessful.append(f)
-                
+
         iface.messageBar().pushMessage('fitting tool attempted to upload routes: sucessfull:%s. unsucessfull:%s'%(','.join(sucessful),','.join(unsucessful)))
-        
         self.route_model.select()
-            
-        
+
+
     def refresh_view(self):
         self.route_model.select()
         self.route_view.viewport().update()
@@ -373,10 +391,11 @@ class routes_widget(QWidget,rw):
                     
                     
     def run_changed(self,i):
-        f="run='"+self.run_box.itemText(i)+"'"#filter like  ref='re'
-        self.route_model.setFilter(f)
-        self.route_model.select()
-        self.route_view.setColumnHidden(self.route_model.fieldIndex("run"), True)#hide run column
+        if self.route_model:
+            f="run='"+self.run_box.itemText(i)+"'"#filter like  ref='re'
+            self.route_model.setFilter(f)
+            self.route_model.select()
+            self.route_view.setColumnHidden(self.route_model.fieldIndex("run"), True)#hide run column
 
         
     #select selected rows of routes table on layers
@@ -429,4 +448,49 @@ def set_layer_box_to(layer_box,name):
     i=layer_box.findText(name)
     if i!=-1:
         layer_box.setLayer(layer_box.layer(i))
+
+
+
+
+#select rows where column matches values
+#qsqltableModel has no findItems method.
+        
+def selectRowsFromValues(tableView,column,values,clearSelection=True):
+    model=tableView.model()
     
+    items=[]
+    for v in values:
+        items+=model.findItems(v,column=column)
+    
+    indexes=[i.index() for i in items]
+
+    for c in range(model.columnCount()):
+        indexes += [i.siblingAtColumn(c) for i in indexes]#add indexes for second column
+    
+    
+    tableView.selectionModel().clearSelection()
+    for i in indexes:
+        tableView.selectionModel().select(i,QItemSelectionModel.Select)
+
+
+#rows is list of int
+def select_rows(table_view,rows,clear=False):
+    if clear:
+        table_view.selectionModel().clearSelection()
+
+    model = table_view.model()
+    col_count = model.columnCount()
+
+    indexes=[]
+    for r in rows:
+        indexes+=[model.index(r,c) for c in range(col_count)]
+    
+    #indexes = [[model.index(r,c) for c in range(col_count)] for r in rows]
+
+    for i in indexes:
+        table_view.selectionModel().select(i,QItemSelectionModel.Select)
+
+        
+    
+
+

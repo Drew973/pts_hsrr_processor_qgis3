@@ -1,7 +1,17 @@
 from qgis.PyQt.QtSql import QSqlDatabase,QSqlQuery
 import psycopg2
 
+from . import sql_task
+from qgis.core import QgsApplication
+
+
+import time
+
 import os
+
+from PyQt5.QtWidgets import QProgressBar
+
+from . import task_dialog
 
 def db_to_con(db):
     return psycopg2.connect(host=db.hostName(),dbname=db.databaseName(),user=db.userName(),password=db.password())
@@ -10,15 +20,27 @@ def db_to_con(db):
 
 #interface for postgres database
 
+
+
+
+
 class database_interface:
-#qdatabase
+#database dialog returns QSqlDatabase
+    
     def __init__(self,db):
+
+        self.host = db.hostName()
+        self.dbname = db.databaseName()
+        self.user = db.userName()
+        self.password = db.password()
+
+        
         self.db =db #psycopg2 better than QSqlDatabase but need this for qsqltablemodels etc.
         if not self.db.isOpen():
             self.db.open()
         self.con=db_to_con(db)
         self.cur=self.con.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
+        self.task=None
 
     def disconnect(self):
         self.db.close()
@@ -26,6 +48,16 @@ class database_interface:
             self.con.close()
 
 
+    def get_con(self):
+        return psycopg2.connect(host=self.host,database=self.dbname,user=self.user,password=self.password)
+
+
+    def get_cur(self):
+        con=self.get_con()
+        if con:
+            return con.cursor()
+
+        
 #script=filename to give in error message when failed to run script
     def sql(self,q,args={},ret=False,script=None):
         try:
@@ -59,6 +91,9 @@ class database_interface:
                 raise ValueError('%s \nrunning: %s \n with args: %s'%(str(e),script,str(args)))
 
                 
+
+
+
 
     def query_to_csv(self,query,to,args=None,force_quote=None):
         with open(to,'w') as f:
@@ -100,8 +135,19 @@ class database_interface:
         self.con.cancel()
 
 
+#qgis specific.
+#only want 1 sql task running at once.
+#add QProgressBar
+    def run_cancelable_query(self,query,args=None,description='sql task',parent=None):
+        connection_params=self.get_con().get_dsn_parameters()
+        td=task_dialog.taskDialog(parent)
+        td.show()
+        td.runTask(task=sql_task.sqlTask(connection_params=connection_params,query=query,args=args,description=description),label=description,noProgress=True)
+
+       
 
 
+#to delete
 # use psycopg2 to run query with args. show progress dialog and cancel button.
 #want modal progressbar
 
@@ -121,85 +167,5 @@ class database_interface:
             self.progress.show()
             QgsApplication.taskManager().addTask(self.task)#priority 0, happens after other tasks. displaying message/widget is task?
             #task.run()#happens imediatly. no progressbar/dialog displayed
-
-
-
-
-
-# use psycopg2 to run query with args. show progress dialog and cancel button.
-#want modal progressbar
-
-#qgis specific. 
-    def cancelable_queries(self,queries,args,text='running task',sucess_message=''):        
-        if self.task:
-            iface.messageBar().pushMessage('fitting tool: already running task')
-            
-        else:
-            self.progress.setLabel(QLabel(text=text))
-            self.progress.setMaximum(100)
-
-            self.task = sql_tasks.cancelable_queries(self.con,queries,args,sucess_message=sucess_message)
-            self.task.progressChanged.connect(self.progress.setValue)
-           # self.task.setDescription(text)
-            self.task.taskCompleted.connect(self.task_canceled)
-            self.task.taskTerminated.connect(self.task_canceled)
-
-            self.progress.canceled.connect(self.task.cancel)
-              
-            self.progress.show()
-            QgsApplication.taskManager().addTask(self.task)#priority 0, happens after other tasks. displaying message/widget is task?
-            #task.run()#happens imediatly. no progressbar/dialog displayed
-
-
-    def cancelable_queries(self,queries,args,text='running task',sucess_message=''):        
-        if self.task:
-            iface.messageBar().pushMessage('fitting tool: already running task')
-            
-        else:
-            self.progress.setLabel(QLabel(text=text))
-            self.progress.setMaximum(100)
-
-            self.task = sql_tasks.cancelable_queries(self.con,queries,args,sucess_message=sucess_message)
-            self.task.progressChanged.connect(self.progress.setValue)
-           # self.task.setDescription(text)
-            self.task.taskCompleted.connect(self.task_canceled)
-            self.task.taskTerminated.connect(self.task_canceled)
-
-            self.progress.canceled.connect(self.task.cancel)
-              
-            self.progress.show()
-            QgsApplication.taskManager().addTask(self.task)#priority 0, happens after other tasks. displaying message/widget is task?
-            #task.run()#happens imediatly. no progressbar/dialog displayed
-
-
-    def cancelable_batch_queries(self,queries,args,text='running task',sucess_message=''):
-        #args is list of dicts/lists here
-        if self.task:
-            iface.messageBar().pushMessage('fitting tool: already running task')
-            
-        else:
-            self.progress.setLabel(QLabel(text=text))
-            self.progress.setMaximum(100)
-
-            self.task = sql_tasks.cancelable_batches(self.con,queries,args,sucess_message=sucess_message)
-            self.task.progressChanged.connect(self.progress.setValue)
-           # self.task.setDescription(text)
-            self.task.taskCompleted.connect(self.task_canceled)
-            self.task.taskTerminated.connect(self.task_canceled)
-
-            self.progress.canceled.connect(self.task.cancel)
-              
-            self.progress.show()
-            QgsApplication.taskManager().addTask(self.task)#priority 0, happens after other tasks. displaying message/widget is task?
-            #task.run()#happens imediatly. no progressbar/dialog displayed
-
-  
-    def task_canceled(self):
-        self.task=None
-        self.progress.reset()
-        self.progress.hide()
-        self.progress.setMinimum(0)#qprogressbar will show busy indicator when min and max set to 0
-        self.progress.setMaximum(0)
-
 
 

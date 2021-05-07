@@ -46,6 +46,11 @@ CREATE OR REPLACE FUNCTION get_line(sect varchar,start_ch float,end_ch float)
 RETURNS geometry AS $$
 		declare g geometry=geom from hsrr.network where sec=sect;
         BEGIN	
-				return make_line(L=g,len=meas_len(sect),start_ch=start_ch,end_ch=end_ch);
+			return make_line(L:=g,len:=meas_len(sect),start_ch:=start_ch,end_ch:=end_ch);
+			--g=make_line(L:=g,len:=meas_len(sect),start_ch:=start_ch,end_ch:=end_ch);
+			--raise notice 'get line(sect=%,start_ch=%,end_ch=%',sect,start_ch,end_ch;
+			--return g;
 		END;			
-$$ LANGUAGE plpgsql;						
+$$ LANGUAGE plpgsql;	
+
+alter function get_line set search_path to hsrr,public;
