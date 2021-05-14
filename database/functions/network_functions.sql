@@ -130,3 +130,15 @@ RETURNS geometry AS $$
 		END;			
 $$ LANGUAGE plpgsql;						
 
+
+--returns section geometry from closest point to start_pt to closest point of end_pt									   					
+CREATE OR REPLACE FUNCTION get_line(sect varchar,start_pt geometry,end_pt geometry) 
+RETURNS geometry AS $$
+		declare g geometry=geom from network where sec=sect;
+		s_ch float= st_lineLocatePoint(g,start_pt)*st_length(g);
+		e_ch float= st_lineLocatePoint(g,end_pt)*st_length(g);
+		
+        BEGIN	
+				return make_line(g,s_ch,e_ch);
+		END;			
+$$ LANGUAGE plpgsql;						

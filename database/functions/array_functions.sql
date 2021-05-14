@@ -52,6 +52,17 @@ CREATE OR REPLACE FUNCTION array_sort_desc(a anyarray) RETURNS anyarray AS
 'SELECT array(select unnest from unnest(a) order by unnest desc)' LANGUAGE sql IMMUTABLE;											   
 											   
 
+CREATE FUNCTION array_intersect(anyarray, anyarray)
+  RETURNS anyarray
+  language sql
+as $FUNCTION$
+    SELECT ARRAY(
+        SELECT UNNEST($1)
+        INTERSECT
+        SELECT UNNEST($2)
+    );
+$FUNCTION$;
+
 
 CREATE OR REPLACE FUNCTION array_sum(a anyarray) 
 RETURNS anyelement AS $$

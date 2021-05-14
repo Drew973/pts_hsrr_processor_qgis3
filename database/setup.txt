@@ -16,6 +16,7 @@ functions/coverage.sql;
 functions/vector_functions.sql;
 functions/network_functions.sql;
 functions/get_line.sql;
+functions/fitting_metrics.sql;
 functions/autofit.sql;
 functions/array_functions.sql;
 functions/refit.sql;

@@ -58,7 +58,7 @@ $$ LANGUAGE plpgsql;
 */
 
 
---autofit all possible sections
+--autofit all possible sections then filter.
 CREATE OR REPLACE FUNCTION hsrr.autofit_run(rn varchar)
 RETURNS void AS $$
 	DECLARE
@@ -73,6 +73,8 @@ RETURNS void AS $$
 		
 		perform hsrr.insert_ps(rn,unnest(srs));--syntax
 		--delete from hsrr.routes where run=rn and note='auto' and hsrr.piece_angle(run,sec,reversed,s_line,e_line) <0.9;
+		delete from routes where run=rn and note='auto' and overlap_count((run,sec,reversed,int8range(s_line,e_line))::fitting_opt,pk)>0 and ends_dist((run,sec,reversed,int8range(s_line,e_line))::fitting_opt)>80;
+
 	END;			
 $$ LANGUAGE plpgsql;
 										 

@@ -1,6 +1,12 @@
 upload folder not working?
 
 
+qsqltable can work with ranges. Won't give any warnings if user sets to something invalid.
+
+
+have pg_routing in kashyyk as well as local.
+
+
 map matching techniques
 
 have Dijkstra's algorithm in plpgsql
@@ -66,6 +72,8 @@ rows of routes unlikely to be too long.
 
 	
 
+bug: extra routes widget added every time connect to database.
+
 
 
 in graph theory terms each opt(sec,rev,s_line,e_line) is edge and each f_line of readings is node/vertex. can be solved by Djecstra's algorithm.
@@ -79,10 +87,6 @@ each node can only be linked to nodes with larger f_line. and continuous ps. and
 could simplify to highest f_line in adjoining ps
 
 cost? start_dist+end_dist is good indicator.
-probably not worth implementing
-
-
-
 
 
 create array from all possible sec_rev in route then filter.?
@@ -102,8 +106,8 @@ each reading to only 1 sec_rev?
 
 
 link all reading with only 1 sec_rev?
-setting up every client network to routable could be massive PTA. Problems with gaps,missing nodes...
-Topological errors
+setting up every client network to routable could be massive PTA. 
+Topological errors(Problems with gaps,missing nodes...)
 
 
 raw_chainage does strange things for hsrr.
