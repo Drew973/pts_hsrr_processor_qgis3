@@ -1,26 +1,28 @@
-from qgis.PyQt import  QtGui, uic
+from qgis.PyQt import uic
 from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
 from qgis.PyQt.QtSql import QSqlTableModel
 
 from qgis.utils import iface
 
-from qgis.PyQt.QtSql import QSqlQuery,QSqlQueryModel
-from qgis.PyQt.QtWidgets import QMessageBox,QWhatsThis,QToolBar
+from qgis.PyQt.QtWidgets import QMessageBox
 import os
 
-from os import path
-import sys
+from .routes_widget import layer_functions
 
-
-from PyQt5.QtWidgets import QDockWidget,QMenu
+from PyQt5.QtWidgets import QDockWidget,QMenu,QMenuBar
 from PyQt5.QtGui import QDesktopServices
 
 from .routes_widget.routes_widget import routes_widget
-from .routes_widget.layer_functions import select_sections
+#from .routes_widget.layer_functions import select_sections
 from .routes_widget.better_table_model import betterTableModel
 from .database_dialog.database_dialog import database_dialog
-from . import color_functions,hsrr_processor_dd,file_dialogs,copy_functions
+from . import hsrr_processor_dd,file_dialogs
+from . import routes_model
 
+
+from .dict_dialog import dictDialog
+
+from PyQt5.QtWidgets import QLineEdit,QComboBox,QCheckBox,QDoubleSpinBox
 
 
 #from qgis.PyQt.QtWebKit import QWebView,QDesktopServices 
@@ -47,11 +49,9 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         super(hsrrProcessorDockWidget, self).__init__(parent)
         self.setupUi(self)
 
-        self.connect_button.clicked.connect(self.connect)
         self.dd=None
         self.rw=routes_widget(self,self.dd,'hsrr.routes',self.readings_box,self.network_box,self.run_fieldbox,self.f_line_fieldbox,self.sec_fieldbox)
         self.rw_placeholder.addWidget(self.rw)
-        self.prepare_database_button.clicked.connect(self.prepare_database)
           
 
         #self.tabs.insertTab(2,self.rw,'Fitting')
@@ -59,9 +59,16 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.upload_csv_button.clicked.connect(self.upload_runs_dialog)
         self.upload_folder_button.clicked.connect(self.upload_folder_dialog)
         
-        self.open_help_button.clicked.connect(self.open_help)        
+      #  self.open_help_button.clicked.connect(self.open_help)        
         self.init_run_menu()
         self.init_requested_menu()
+        self.init_section_changes_menu()
+        self.initTopMenu()
+        
+        
+    def onConnectAct(self):
+        db=database_dialog(self).exec_()
+        
         
         
     def connect(self):
@@ -70,11 +77,18 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             self.dd=hsrr_processor_dd.hsrr_dd(db)
             self.rw.connect_to_dd(self.dd)
             self.dd.sql('set search_path to hsrr,public;')
-            self.database_label.setText('Connected to %s'%(db.databaseName()))
+            self.setWindowTitle('Connected to %s - HSRR Processer'%(db.databaseName()))
             self.connect_run_info()
             self.connect_coverage()
             self.refresh_run_info()
 
+            self.routes_model = routes_model.routesModel(db)
+            self.routes_view.setModel(self.routes_model)
+            [self.routes_view.setColumnHidden(col, True) for col in self.routes_model.hiddenColIndexes]#hide run column
+
+            self.run_box.setModel(self.run_info_model)
+            self.run_box.currentTextChanged.connect(self.routes_model.setRun)
+            
             
         except Exception as e:
             iface.messageBar().pushMessage("could not connect to database. %s"%(str(e)),duration=4)
@@ -82,6 +96,195 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             self.dd=None
 
 
+
+    def new_row(self):
+        d = dictDialog(parent=self)
+        d.addWidget('sec',QLineEdit(),True)
+        d.addWidget('reversed',QCheckBox(),True)
+        xsp_box=QComboBox()
+        xsp_box.addItems(['LE','CL1','CL2','CL3','RE'])
+        d.addWidget('xsp',xsp_box,True)
+        d.addWidget('ch',QDoubleSpinBox(),True)
+        d.accepted.connect(lambda:self.routes_model.addRow(self.current_run(),d['sec'],d['reversed'],d['xsp'],d['ch']))
+        d.exec()
+            
+
+        
+    def initTopMenu(self):
+        self.topMenu = QMenuBar()
+        
+        
+        self.mainWidget.layout().setMenuBar(self.topMenu)
+        #self.layout().setMenuBar(self.top_menu)
+     #   self.layout().addWidget(self.top_menu)
+       
+        
+        databaseMenu = self.topMenu.addMenu('Database')
+        connectAct = databaseMenu.addAction('connect to database')
+        connectAct.triggered.connect(self.connect)
+        newAct = databaseMenu.addAction('Setup database for hsrr')
+        newAct.triggered.connect(self.prepareDatabase)        
+        
+       
+        
+       
+        routesMenu = self.topMenu.addMenu('section_changes')
+        setXspAct = routesMenu.addAction('set xsp of run...')
+        addRowAct = routesMenu.addAction('add row...')
+        addRowAct.triggered.connect(self.new_row)
+        
+        helpMenu = self.topMenu.addMenu('help')
+        openHelpAct = helpMenu.addAction('open help')
+        openHelpAct.setToolTip('Open help in your default web browser')
+        openHelpAct.triggered.connect(self.open_help)
+
+
+    def init_section_changes_menu(self):
+        self.rows_menu = QMenu()
+        self.rows_menu.setToolTipsVisible(True)
+        
+        self.routes_view.setContextMenuPolicy(Qt.CustomContextMenu);
+        self.routes_view.customContextMenuRequested.connect(lambda pt:self.rows_menu.exec_(self.mapToGlobal(pt)))
+          
+
+        self.select_on_layers_act=self.rows_menu.addAction('select on layers')
+        self.select_on_layers_act.setToolTip('select these rows on network and/or readings layers.')
+        self.select_on_layers_act.triggered.connect(self.select_on_layers)
+
+        self.select_from_layers_act=self.rows_menu.addAction('select from layers')
+        self.select_from_layers_act.setToolTip('set selected rows from selected features of readings layer.')
+  #      self.select_from_layers_act.triggered.connect(self.select_from_layers)
+
+        self.delete_rows_act=self.rows_menu.addAction('delete selected rows')
+        self.delete_rows_act.triggered.connect(lambda:self.routes_model.dropRows(self.routes_view.selectionModel().selectedRows()))
+
+        self.add_menu=self.rows_menu.addMenu('add new row')
+        self.row_after_act=self.add_menu.addAction('add empty row after last selected')
+#        self.row_after_act.triggered.connect(self.add_empty_row)
+
+        self.add_from_feats_act=self.add_menu.addAction('add new row from selected features')
+ #       self.add_from_feats_act.triggered.connect(self.add_from_feats)
+        
+        
+        
+        
+    #select selected rows of routes table on layers
+    ###########################################################################################################
+    def select_on_layers(self):
+
+        inds = self.get_selected_rows()
+        
+        s_ch_col = self.get_s_ch_field()
+        e_ch_col = self.get_e_ch_field()
+        
+        run_col = self.get_run_field()
+        run = self.current_run()
+        readings_layer = self.get_readings_layer()
+        
+        
+        #fids = readings_layer.selectedFeatureIds()#use this to keep features selected
+        fids = []
+       
+        ch_col = self.routes_model.fieldIndex('ch')
+        
+        for i in inds:
+            s = i.sibling(i.row(),ch_col).data()
+            e = i.sibling(i.row()+1,ch_col).data()
+        
+            if s and e:
+                fids += [f.id() for f in layer_functions.ch_to_features(readings_layer, run, run_col, s, s_ch_col, e, e_ch_col)]
+        
+        print('%s,%s,%s'%(s_ch_col,e_ch_col,run_col))
+        readings_layer.selectByIds(fids)
+        
+        
+        self.select_on_network(inds)
+        
+        '''
+        
+        if self.network_box.currentLayer() and self.sec_fieldbox.currentField():
+            layer_functions.select_sections([i.data() for i in inds],self.network_box.currentLayer(),self.sec_fieldbox.currentField(),zoom=True)
+
+        else:
+            iface.messageBar().pushMessage('fitting tool: Network layer/label field not set.')
+            
+
+        #select and zoom to features of readings layer    
+        r_field=self.run_fieldbox.currentField()
+        f_field=self.f_line_fieldbox.currentField()
+        run=self.run_box.currentText()       
+    
+        s_col=self.routes_model.fieldIndex('s_line')
+        e_col=self.routes_model.fieldIndex('e_line')
+        
+        ids=[layer_functions.ch_to_id(r_layer,r_field,run,f_field,i.sibling(i.row(),s_col).data(),i.sibling(i.row(),e_col).data()) for i in self.routes_view.selectionModel().selectedRows()]#list of lists
+        if ids:
+           # r_layer.setSelectedFeatures(ids2)#qgis2
+            r_layer.selectByIds(ids)#qgis3
+            layer_functions.zoom_to_selected(r_layer)
+        '''    
+    
+    #select sections from routes_view.selectedRows()
+    def select_on_network(self,inds): 
+        ch_col = self.routes_model.fieldIndex('sec')
+        sects = [i.sibling(i.row(),ch_col).data() for i in inds] 
+        network_layer = self.get_network_layer()
+        sec_field = self.get_sec_field()
+        layer_functions.select_sections(sects,network_layer,sec_field,zoom=True)
+        
+        
+        
+        
+    def get_network_layer(self,message=True):
+        if self.network_box.currentLayer():
+            return self.network_box.currentLayer()
+        if message:
+            iface.messageBar().pushMessage('hsrr tool:no network layer selected')
+        
+
+    def get_selected_rows(self):
+        inds = self.routes_view.selectionModel().selectedRows()
+        if inds:
+            return inds
+        iface.messageBar().pushMessage('hsrr tool:no rows selected')
+
+
+    def get_sec_field(self,message=True):
+        if self.sec_fieldbox.currentField():
+            return self.sec_fieldbox.currentField()
+        if message:
+            iface.messageBar().pushMessage('hsrr tool:no section label field selected')
+            
+        
+    def get_readings_layer(self,message=True):
+        if self.readings_box.currentLayer():
+           return self.readings_box.currentLayer()
+        if message:
+            iface.messageBar().pushMessage('hsrr tool:no readings layer selected')
+            
+        
+    def get_s_ch_field(self):
+        return 's_ch'        
+        
+    
+    def get_e_ch_field(self):
+        return 'e_ch'  
+        
+    
+    def get_run_field(self,message=False):
+        if self.run_fieldbox.currentField():
+           return self.run_fieldbox.currentField()
+        if message:
+            iface.messageBar().pushMessage('hsrr tool: run field not set')
+   
+    
+    def current_run(self,message=True):      
+        if self.run_box.currentText():
+           return self.run_box.currentText()
+        if message:
+            iface.messageBar().pushMessage('hsrr tool: no run selected')
+                
+    
     def coverage_show_all(self):
         self.requested_model.setFilter('')
         self.requested_model.select()
@@ -180,7 +383,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.requested_view.resizeColumnsToContents()
 
         
-    def prepare_database(self):
+    def prepareDatabase(self):
         if self.check_connected():
             msgBox=QMessageBox();
             msgBox.setText("DON'T USE THIS PARTWAY THROUGH THE JOB! because this will erase any data in tables used by this plugin.");
@@ -232,20 +435,5 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
     def refresh_run_info(self):
         self.run_info_model.select()
         self.rw.refresh_runs()
-
-
-
-#select sec on network
-    def select_on_network(self,sects):
-       # inds=self.requested_view.selectionModel().selectedRows()#indexes of column 0
-        have_network=self.network_box.currentLayer() and self.sec_fieldbox.currentField()
-        
-        if have_network:
-            select_sections(sects,self.network_box.currentLayer(),self.sec_fieldbox.currentField(),zoom=True)
-
-        else:
-            iface.messageBar().pushMessage('fitting tool:network layer&section field not set')
-
-
 
 

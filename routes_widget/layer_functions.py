@@ -27,17 +27,20 @@ def single_quote(s):
 def double_quote(s):
     return '"%s"'%(s) 
 
+def dq(s):
+    return '"%s"'%(s) 
+
+def sq(s):
+    return "'%s'"%(s)
 
 #sects is list of sections.
 def select_sections(sects,layer,field,zoom=False):
-    if field: 
-        e="%s IN (%s)" %(double_quote(field),','.join([single_quote(s) for s in sects]))#expression looks like "Column_Name" IN ('Value_1', 'Value_2', 'Value_N')
-        #Field names in double quotes, string in single quotes
-        layer.selectByExpression(e)
-        if zoom:
-            zoom_to_selected(layer)   
-    else:
-        iface.messageBar().pushMessage('fitting tool: Field not set.')       
+    print(sects)
+    e="%s IN (%s)" %(double_quote(field),','.join([single_quote(s) for s in sects]))#expression looks like "Column_Name" IN ('Value_1', 'Value_2', 'Value_N')
+    #Field names in double quotes, string in single quotes
+    layer.selectByExpression(e)
+    if zoom:
+        zoom_to_selected(layer)   
         
 #zoom to selected features of layer. Works with any crs
 def zoom_to_selected(layer):
@@ -56,6 +59,22 @@ def ch_to_id(layer,run_field,run,f_field,s,e):
     return [f.id() for f in layer.getFeatures(request)]
         
 
+
+def ch_to_features(layer,run,run_field,s,s_ch_field,e,e_ch_field):
+    exp="\"{run_field}\"='{run}' and \"{s_ch_field}\"<{e} and \"{e_ch_field}\">{s}"
+    exp = exp.format(run_field=run_field,run=run,s_ch_field=s_ch_field,e_ch_field=e_ch_field,s=s,e=e)
+    r = QgsFeatureRequest().setFilterExpression(exp)
+
+    #ids = layer.selectedFeatureIds()
+    #layer.selectByIds([f.id() for f in layer.getFeatures(r) ]+ids)
+    return layer.getFeatures(r)
+
+#use ids = layer.selectedFeatureIds() then layer.selectByIds to avoid losing selection.
+
+
+
+
+
 #"run"='bench mark 01' and 'TEST01'<="f_line" and "f_line"<='12'
 
 #filter layer to only show run
@@ -63,4 +82,16 @@ def ch_to_id(layer,run_field,run,f_field,s,e):
 def filter_by_run(layer,run_field,run):
     layer.setSubsetString("%s = '%s'"%(run_field,run))
     
+    
+    
+import math
+
+def chainages_to_feats(layer,run_field,run,ch_field,s,e):
+    s = math.ceil(float(s))
+    e = math.ceil(float(e))
+    
+    exp = '%s=%s and %d<=%s and %s<=%d'%(dq(run_field),sq(run),s,dq(ch_field),dq(ch_field),e)
+    request = QgsFeatureRequest().setFilterExpression(exp)
+    #return [f.id() for f in layer.getFeatures(request)]
+    return layer.getFeatures(request)
 

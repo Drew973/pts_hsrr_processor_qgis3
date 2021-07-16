@@ -75,3 +75,46 @@ $$ LANGUAGE plpgsql;
 
 
 alter function hsrr.resize(sect varchar,rev bool,xs varchar) set search_path=hsrr,public;
+
+
+
+
+
+
+
+
+set search_path to hsrr,public;
+
+
+
+with a as (select sec,reversed,xsp,get_pieces(sec) from requested)
+,pieces as (select sec,reversed,xsp,(get_pieces).s_ch,(get_pieces).e_ch,(get_pieces).geom,(get_pieces).rg from a)
+
+
+,b as (
+select pieces.sec
+	,pieces.reversed
+	,pieces.xsp
+	,s_ch
+	,e_ch
+	,array_agg(fitted.pk order by fitted.rg*pieces.rg) as pks
+	,array_agg(fitted.rl order by fitted.rg*pieces.rg),array_agg(fitted.rl order by fitted.rg*pieces.rg) as vals	
+	,array_agg(upper(fitted.rg*pieces.rg)-lower(fitted.rg*pieces.rg) order by fitted.rg*pieces.rg )::float[] as lengths
+	,geom
+
+from pieces left join fitted on pieces.sec=fitted.sec and pieces.reversed=fitted.reversed and pieces.xsp=fitted.xsp and pieces.rg&&fitted.rg
+group by pieces.sec,pieces.reversed,pieces.xsp,s_ch,e_ch,geom
+)
+
+insert into resized(sec,reversed,xsp,s_ch,e_ch,geom,pks,vals,lengths,rl)
+select sec,reversed,xsp,s_ch,e_ch,geom,pks,vals,lengths,weighted_av(vals,lengths) from b
+
+
+
+
+
+
+
+
+
+

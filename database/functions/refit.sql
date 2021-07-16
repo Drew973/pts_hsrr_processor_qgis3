@@ -86,6 +86,26 @@ CREATE OR REPLACE FUNCTION hsrr.refit(sect varchar,rev bool,xs varchar)
 		
 	END;			
 $$ LANGUAGE plpgsql;
-
-
 alter function hsrr.refit(sect varchar,rev bool,xs varchar) set search_path=hsrr,public;
+
+/*
+
+delete from fitted;
+
+insert into fitted(sec,reversed,xsp,run,readings_pk,vect,sec_ch_s,sec_ch_e,rl)
+
+select
+sec
+,reversed,xsp,routes.run,readings.pk
+,vect
+--case when reversed then...,readings.s_ch-routes.s_ch+start_sec_ch as sec_ch_s
+--,readings.e_ch-routes.s_ch+start_sec_ch as sec_ch_e
+,meas_sec_ch(sec,st_startPoint(vect)) as sec_ch_s
+,meas_sec_ch(sec,st_endPoint(vect)) as sec_ch_e
+,rl
+
+from readings left join routes on readings.run=routes.run and rg&&numrange(routes.s_ch::numeric,routes.e_ch::numeric)
+order by readings.run,readings.s_ch,sec_ch_s desc;
+update fitted set rg=numrange(least(sec_ch_s::numeric,sec_ch_e::numeric),greatest(sec_ch_s::numeric,sec_ch_e::numeric));
+
+*/

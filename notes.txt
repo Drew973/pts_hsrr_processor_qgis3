@@ -1,5 +1,3 @@
-upload folder not working?
-
 
 qsqltable can work with ranges. Won't give any warnings if user sets to something invalid.
 
@@ -12,116 +10,26 @@ map matching techniques
 have Dijkstra's algorithm in plpgsql
 
 
-fitting to lrs:
 
-	already have limited number of options per point (ps). need way to choose best one.
-
-	fitting metrics:
-		 for 1 point:
-			distance
-			bearing
-			reversed
-
-
-		piece
-			average distance
-
-			bearings of points vs section
-
-			fraction of section covered
-			coverage of section
-
-
-		multiple pieces/route/everything
-
-			average distance?
-
-			penalty for complexity (number of sections)
+upload runs to dialog?
+help to top menu
 
 
 
 
-create array of sec_revs in consecutive order then add to route using array_cluster and number of times element appeared previously
 
+get section_changes chainage and point.
 
-adding sec_revs to routes not easy...:
-	getting s_line and e_line for sec_rev?
-	have in readings...
-
-
-treat f_line as float.
-then
-round s_line down and e_line up.
+how to get changes without getting wrong side of dual carriageway?
 
 
 
-junctions where ps changes.
-junctions should mostly be near end of a section.
-Can easily get section linking 2 junctions. geom within x m of both junctions
-because size of buffers small compared to distance between readings junction will be within 1 row of readings
-
-rows of routes unlikely to be too long.
+section_changes as view?
 
 
 
-	create type opt (sr sec_rev,rg numrange)
-	ps of readings to opt[] using array_cluster
-	adjust(opt):
-		nearest f_line of readings within run and opt to (opt).sr start_point   f_line+ST_LineLocatePoint
-	have array of fitting opts.
+make
+validatedTextEditDelegate.
+text edit with validator.
 
-	
-
-bug: extra routes widget added every time connect to database.
-
-
-
-in graph theory terms each opt(sec,rev,s_line,e_line) is edge and each f_line of readings is node/vertex. can be solved by Djecstra's algorithm.
-
-
-
-each node can only be linked to nodes with larger f_line. and continuous ps. and continuous on network
-
-
-
-could simplify to highest f_line in adjoining ps
-
-cost? start_dist+end_dist is good indicator.
-
-
-create array from all possible sec_rev in route then filter.?
-assume array will contain all correct sections.
-filter with decision tree.
-
-
-select st_union(st_buffer(st_startPoint(geom),20)) from network
-
-
-use geometry to filter?
-remove if not (	geom of last sec_rev within x m of geom of sec_rev and geom within x m of next geom)
-
-
-
-each reading to only 1 sec_rev?
-
-
-link all reading with only 1 sec_rev?
-setting up every client network to routable could be massive PTA. 
-Topological errors(Problems with gaps,missing nodes...)
-
-
-raw_chainage does strange things for hsrr.
-
-
-
-or insert all possible pieces then find where conflict and remove the less likely option. 
-should have only false positives.
-s_line and e_line likely accurate because reading spacing>>buffer size
-
-
-consider filtering where
-	overlaps another row by more than 1 f_line
-	and metric poor
-
-
-regexp_replace(file, '^.+[/\\]', '') to get filename
+use to enforce foreign key constraints on tableViews.

@@ -2,7 +2,7 @@ from qgis.PyQt.QtWidgets import QWidget
 
 from .better_table_model import betterTableModel
 
-from . import color_functions,table_view_to_csv,upload_routes_csv,file_dialogs,layer_functions
+from . import color_functions,file_dialogs,layer_functions
 
 from qgis.PyQt.QtSql import QSqlTableModel
 from qgis.PyQt.QtCore import Qt
@@ -16,8 +16,7 @@ import os
 from qgis.core import QgsFieldProxyModel
 from qgis.core import QgsMapLayerProxyModel
 
-from qgis.PyQt import uic,QtGui
-from qgis.PyQt.QtSql import QSqlQuery
+from qgis.PyQt import uic
 
 from PyQt5.Qt import QItemSelectionModel
 

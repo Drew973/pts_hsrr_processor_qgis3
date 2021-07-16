@@ -1,4 +1,4 @@
-drop type fitting_opt cascade;
+drop type if exists fitting_opt cascade;
 
 
 create type fitting_opt as
@@ -47,7 +47,7 @@ CREATE OR REPLACE FUNCTION ends_dist2(opt fitting_opt)
 RETURNS float AS $$	
 Declare
 	g geometry = geom from network where sec=(opt).sec;
-	start_geom geometry = st_startPoint(vect) from readings where run=(opt).run and f_line=lower((opt).rg)
+	start_geom geometry = st_startPoint(vect) from readings where run=(opt).run and f_line=lower((opt).rg);
 	end_geom geometry = st_startPoint(vect) from readings where run=(opt).run and f_line=lower((opt).rg);
 	
     BEGIN

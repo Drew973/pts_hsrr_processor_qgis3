@@ -1,6 +1,13 @@
 CREATE OR REPLACE FUNCTION meas_len(sect varchar) RETURNS float AS
 'SELECT cast(meas_len as float) from hsrr.network where sec=sect' LANGUAGE sql IMMUTABLE;
 
+CREATE OR REPLACE FUNCTION calc_len(sect varchar) RETURNS float AS
+$$
+SELECT st_length(geom) from hsrr.network where sec=sect
+$$
+LANGUAGE sql IMMUTABLE;
+
+
 CREATE OR REPLACE FUNCTION is_rbt(sect varchar) RETURNS bool AS
 'SELECT rbt from hsrr.network where sec=sect' LANGUAGE sql IMMUTABLE;
 
@@ -120,25 +127,3 @@ RETURNS Bool AS $$
 	return True;
 	END;			
 $$ LANGUAGE plpgsql;
-
---returns linestring from start_ch to end_ch of section, start_ch and end_ch in terms of meas_len.									   					
-CREATE OR REPLACE FUNCTION get_line(sect varchar,start_ch float,end_ch float) 
-RETURNS geometry AS $$
-		declare g geometry=geom from hsrr.network where sec=sect;
-        BEGIN	
-				return make_line(g,meas_len(sect),start_ch,end_ch);
-		END;			
-$$ LANGUAGE plpgsql;						
-
-
---returns section geometry from closest point to start_pt to closest point of end_pt									   					
-CREATE OR REPLACE FUNCTION get_line(sect varchar,start_pt geometry,end_pt geometry) 
-RETURNS geometry AS $$
-		declare g geometry=geom from network where sec=sect;
-		s_ch float= st_lineLocatePoint(g,start_pt)*st_length(g);
-		e_ch float= st_lineLocatePoint(g,end_pt)*st_length(g);
-		
-        BEGIN	
-				return make_line(g,s_ch,e_ch);
-		END;			
-$$ LANGUAGE plpgsql;						
