@@ -21,7 +21,7 @@ class routesModel(QSqlTableModel):
 
         self.setTable('hsrr.section_changes') 
         self.setEditStrategy(QSqlTableModel.OnFieldChange)
-        self.setSort(self.fieldIndex("ch"),Qt.AscendingOrder)#sort by s
+        self.setSort(self.fieldIndex("s_ch"),Qt.AscendingOrder)#sort by s
         self.select()
         self.hiddenColIndexes=[self.fieldIndex(col) for col in ['run','pk','pt','geom']]
 
@@ -55,6 +55,9 @@ class routesModel(QSqlTableModel):
             con.cursor().execute(q,d)
             
         self.select()
+        
+        
+        
     def addRow2(self,run,sec,rev,xsp,ch):
         d={'run':run,'sec':sec,'rev':rev,'xsp':xsp,'ch':ch}      
         print(d)

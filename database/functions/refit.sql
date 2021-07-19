@@ -32,31 +32,39 @@ alter function hsrr.refit(rn varchar) set search_path=hsrr,public;
 
 
 
-CREATE OR REPLACE FUNCTION hsrr.refit() 
+
+
+
+
+CREATE OR REPLACE FUNCTION refit() 
 	RETURNS void AS $$
 	
 	BEGIN
 	delete from fitted;
 	
-	insert into fitted(sec,reversed,xsp,run,f_line,vect,s_ch,e_ch,rl)
-	select
-	sec
-	,reversed
-	,xsp
-	,hsrr.routes.run
-	,f_line
-	,vect
-	,meas_sec_ch(sec,s_point) as s_ch
-	,meas_sec_ch(sec,e_point) as e_ch
-	,rl
-	from hsrr.routes inner join hsrr.readings on hsrr.readings.run=hsrr.routes.run and hsrr.routes.s_line<=hsrr.readings.f_line and hsrr.readings.f_line<=hsrr.routes.e_line;
-	
-	update fitted set rg=int4range(least(s_ch,e_ch)::int,greatest(s_ch,e_ch)::int,'[]');
+	with a as(
+		select
+		routes.run
+		,readings.pk as readings_pk
+		,sec
+		,reversed
+		,xsp
+		,vect
+		,meas_sec_ch(sec,s_point) as sec_ch_s
+		,meas_sec_ch(sec,e_point) as sec_ch_e
+		,rl
+		from routes inner join readings on readings.run=routes.run and numrange(readings.s_ch::numeric,readings.e_ch::numeric)&&numrange(routes.s_ch::numeric,routes.e_ch::numeric)
+	)
+	insert into fitted(run,readings_pk,sec,reversed,xsp,vect,sec_ch_s,sec_ch_e,rl,rg)
+	select run,readings_pk,sec,reversed,xsp,vect,sec_ch_s,sec_ch_e,rl,numrange(least(sec_ch_s,sec_ch_e)::numeric,greatest(sec_ch_s,sec_ch_e)::numeric) from a;
 	
 	END;			
 $$ LANGUAGE plpgsql;
 
+
 alter function hsrr.refit() set search_path=hsrr,public;
+
+
 
 
 

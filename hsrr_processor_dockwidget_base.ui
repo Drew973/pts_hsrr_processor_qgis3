@@ -27,7 +27,7 @@
        <item>
         <widget class="QTabWidget" name="tabs">
          <property name="currentIndex">
-          <number>0</number>
+          <number>3</number>
          </property>
          <widget class="QWidget" name="setup">
           <attribute name="title">
@@ -119,32 +119,11 @@
            </item>
           </layout>
          </widget>
-         <widget class="QWidget" name="tab_2">
+         <widget class="QWidget" name="runs">
           <attribute name="title">
-           <string>Upload</string>
+           <string>Runs</string>
           </attribute>
           <layout class="QVBoxLayout" name="verticalLayout">
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayout">
-             <item>
-              <widget class="QPushButton" name="upload_csv_button">
-               <property name="text">
-                <string>Upload spreadsheets...</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="upload_folder_button">
-               <property name="toolTip">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Upload all .xls files in folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-               </property>
-               <property name="text">
-                <string>Upload Folder</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
            <item>
             <widget class="QTableView" name="run_info_view">
              <property name="toolTip">
@@ -202,6 +181,9 @@
               <enum>QAbstractItemView::SelectRows</enum>
              </property>
             </widget>
+           </item>
+           <item>
+            <widget class="QTableView" name="changesView"/>
            </item>
           </layout>
          </widget>

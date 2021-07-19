@@ -24,6 +24,10 @@ from .dict_dialog import dictDialog
 
 from PyQt5.QtWidgets import QLineEdit,QComboBox,QCheckBox,QDoubleSpinBox
 
+from .import delegates
+
+from PyQt5.QtSql import QSqlQuery,QSqlQueryModel
+
 
 #from qgis.PyQt.QtWebKit import QWebView,QDesktopServices 
 
@@ -55,9 +59,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
           
 
         #self.tabs.insertTab(2,self.rw,'Fitting')
-        
-        self.upload_csv_button.clicked.connect(self.upload_runs_dialog)
-        self.upload_folder_button.clicked.connect(self.upload_folder_dialog)
+    
         
       #  self.open_help_button.clicked.connect(self.open_help)        
         self.init_run_menu()
@@ -82,9 +84,22 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             self.connect_coverage()
             self.refresh_run_info()
 
+
+
+
+
+            #model for section changes
             self.routes_model = routes_model.routesModel(db)
             self.routes_view.setModel(self.routes_model)
             [self.routes_view.setColumnHidden(col, True) for col in self.routes_model.hiddenColIndexes]#hide run column
+            
+            
+            
+            self.changesModel = QSqlQueryModel(self)
+            self.changesModel.setQuery('select * from hsrr.changes_view',self.dd.db)
+            print('changesModel')
+            
+            self.changesView.setModel(self.changesModel)
 
             self.run_box.setModel(self.run_info_model)
             self.run_box.currentTextChanged.connect(self.routes_model.setRun)
@@ -92,7 +107,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             
         except Exception as e:
             iface.messageBar().pushMessage("could not connect to database. %s"%(str(e)),duration=4)
-            self.database_label.setText('Not Connected')            
+            self.setWindowTitle('Not connected - HSRR Processer')
             self.dd=None
 
 
@@ -118,22 +133,27 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         #self.layout().setMenuBar(self.top_menu)
      #   self.layout().addWidget(self.top_menu)
        
-        
         databaseMenu = self.topMenu.addMenu('Database')
-        connectAct = databaseMenu.addAction('connect to database')
+        connectAct = databaseMenu.addAction('Connect to database')
         connectAct.triggered.connect(self.connect)
         newAct = databaseMenu.addAction('Setup database for hsrr')
-        newAct.triggered.connect(self.prepareDatabase)        
+        newAct.triggered.connect(self.prepareDatabase)     
+        
+        
+        uploadMenu = self.topMenu.addMenu('Upload')
+        uploadReadingsAct = uploadMenu.addAction('Upload readings spreadsheet...')
+        uploadReadingsAct.triggered.connect(self.upload_runs_dialog)
+        uploadReadingsFolderAct = uploadMenu.addAction('Upload all readings in folder...')
+        uploadReadingsFolderAct.triggered.connect(self.upload_folder_dialog)        
         
        
         
-       
-        routesMenu = self.topMenu.addMenu('section_changes')
-        setXspAct = routesMenu.addAction('set xsp of run...')
-        addRowAct = routesMenu.addAction('add row...')
+        routesMenu = self.topMenu.addMenu('Section_changes')
+        setXspAct = routesMenu.addAction('Set xsp of run...')
+        addRowAct = routesMenu.addAction('Add row...')
         addRowAct.triggered.connect(self.new_row)
         
-        helpMenu = self.topMenu.addMenu('help')
+        helpMenu = self.topMenu.addMenu('Help')
         openHelpAct = helpMenu.addAction('open help')
         openHelpAct.setToolTip('Open help in your default web browser')
         openHelpAct.triggered.connect(self.open_help)
@@ -309,13 +329,17 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.run_info_model.setEditStrategy(QSqlTableModel.OnFieldChange)
         self.run_info_view.setModel(self.run_info_model)
         
+       # self.run_info_view.setItemDelegateForColumn(self.run_info_model.fieldIndex('file'),delegates.readOnlyText())#makes column uneditable
+        
+        
         
     def check_connected(self):
-        if self.dd.con:
-            return True
-        else:
-            iface.messageBar().pushMessage('fitting tool: Not connected to database')
-            return False
+        if self.dd:
+            if self.dd.con:
+                return True
+
+        iface.messageBar().pushMessage('fitting tool: Not connected to database')
+        return False
 
 
     def upload_runs(self,runs):

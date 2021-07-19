@@ -1,8 +1,9 @@
 set search_path to hsrr,public;
 
-drop view if exists section_changes_view;
+drop view if exists changes_view;
 
-create view section_changes_view as
+
+create view changes_view as
 with a as (select *,lead(s_ch) over (partition by run order by s_ch) from routes)
 , b as (
 select run,sec,reversed,xsp,s_ch from a
