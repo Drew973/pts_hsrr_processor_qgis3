@@ -7,8 +7,9 @@ from qgis.utils import iface
 from qgis.PyQt.QtWidgets import QMessageBox
 import os
 
-from .routes_widget import layer_functions as layerFunctions
-from .routes_widget.better_table_model import betterTableModel
+from . import layerFunctions
+
+from .betterTableModel import betterTableModel
 from . import delegates
 
 from PyQt5.QtWidgets import QDockWidget,QMenu,QMenuBar
@@ -141,11 +142,12 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.runsModel.setTable('hsrr.run_info')
         self.runsModel.setSort(self.runsModel.fieldIndex("run"),Qt.AscendingOrder)
         self.runsModel.setEditStrategy(QSqlTableModel.OnFieldChange)
+        self.runsModel.select()
         self.runInfoView.setModel(self.runsModel)
         self.runBox.setModel(self.runsModel)
         self.runBox.setCurrentIndex(1)
        # self.run_info_view.setItemDelegateForColumn(self.run_info_model.fieldIndex('file'),delegates.readOnlyText())#makes column uneditable
-        self.runsModel.select()
+        
     
         
     def showAddDialog(self):
