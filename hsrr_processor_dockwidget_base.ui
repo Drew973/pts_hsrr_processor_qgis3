@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>533</width>
-    <height>591</height>
+    <width>559</width>
+    <height>672</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>HSRR Processor</string>
+   <string>Not Connected - HSRR Processor</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents">
    <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -27,105 +27,15 @@
        <item>
         <widget class="QTabWidget" name="tabs">
          <property name="currentIndex">
-          <number>3</number>
+          <number>0</number>
          </property>
-         <widget class="QWidget" name="setup">
-          <attribute name="title">
-           <string>Fields</string>
-          </attribute>
-          <layout class="QGridLayout" name="gridLayout">
-           <item row="3" column="2">
-            <widget class="QgsFieldComboBox" name="run_fieldbox">
-             <property name="toolTip">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Field with run number.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="0" colspan="2">
-            <widget class="QLabel" name="label_11">
-             <property name="text">
-              <string>readings layer</string>
-             </property>
-            </widget>
-           </item>
-           <item row="5" column="0">
-            <widget class="QLabel" name="label_5">
-             <property name="text">
-              <string/>
-             </property>
-            </widget>
-           </item>
-           <item row="4" column="0" colspan="2">
-            <widget class="QLabel" name="label_13">
-             <property name="text">
-              <string>f_line field</string>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="0" colspan="2">
-            <widget class="QLabel" name="label_12">
-             <property name="text">
-              <string>run field</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="2">
-            <widget class="QgsMapLayerComboBox" name="network_box">
-             <property name="toolTip">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Layer with network. Table network of database.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-             </property>
-             <property name="whatsThis">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Layer to select features on.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="0" colspan="2">
-            <widget class="QLabel" name="label_10">
-             <property name="text">
-              <string>section field</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="2">
-            <widget class="QgsMapLayerComboBox" name="readings_box">
-             <property name="toolTip">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Layer with readings. Readings are in table r of database.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-             </property>
-             <property name="whatsThis">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Layer to select features on.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-             </property>
-            </widget>
-           </item>
-           <item row="4" column="2">
-            <widget class="QgsFieldComboBox" name="f_line_fieldbox">
-             <property name="toolTip">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Field with f_line&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="2">
-            <widget class="QgsFieldComboBox" name="sec_fieldbox">
-             <property name="toolTip">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Field&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="0" colspan="2">
-            <widget class="QLabel" name="label_9">
-             <property name="text">
-              <string>network layer</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
          <widget class="QWidget" name="runs">
           <attribute name="title">
            <string>Runs</string>
           </attribute>
           <layout class="QVBoxLayout" name="verticalLayout">
            <item>
-            <widget class="QTableView" name="run_info_view">
+            <widget class="QTableView" name="runInfoView">
              <property name="toolTip">
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;run_info table. Ensure benchmark and season fields correct.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
@@ -146,19 +56,9 @@
            </item>
           </layout>
          </widget>
-         <widget class="QWidget" name="tab_3">
-          <attribute name="title">
-           <string>Fitting</string>
-          </attribute>
-          <layout class="QVBoxLayout" name="verticalLayout_10">
-           <item>
-            <layout class="QVBoxLayout" name="rw_placeholder"/>
-           </item>
-          </layout>
-         </widget>
          <widget class="QWidget" name="tab_5">
           <attribute name="title">
-           <string>Section_changes</string>
+           <string>Fitting</string>
           </attribute>
           <layout class="QVBoxLayout" name="verticalLayout_4">
            <item>
@@ -171,19 +71,16 @@
               </widget>
              </item>
              <item>
-              <widget class="QComboBox" name="run_box"/>
+              <widget class="QComboBox" name="runBox"/>
              </item>
             </layout>
            </item>
            <item>
-            <widget class="QTableView" name="routes_view">
+            <widget class="QTableView" name="changesView">
              <property name="selectionBehavior">
               <enum>QAbstractItemView::SelectRows</enum>
              </property>
             </widget>
-           </item>
-           <item>
-            <widget class="QTableView" name="changesView"/>
            </item>
           </layout>
          </widget>
@@ -230,18 +127,6 @@
    </layout>
   </widget>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>QgsFieldComboBox</class>
-   <extends>QComboBox</extends>
-   <header>qgis.gui</header>
-  </customwidget>
-  <customwidget>
-   <class>QgsMapLayerComboBox</class>
-   <extends>QComboBox</extends>
-   <header>qgis.gui</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

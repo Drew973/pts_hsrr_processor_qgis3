@@ -1,7 +1,7 @@
 
 from PyQt5.QtWidgets import QStyledItemDelegate,QLineEdit
 from PyQt5.QtSql import QSqlRelationalDelegate
-from PyQt5.QtWidgets import QComboBox,QLineEdit,QCompleter
+from PyQt5.QtWidgets import QComboBox
 
 
 #read only delegate ro display label
@@ -26,23 +26,6 @@ class searchableRelationalDelegate(QSqlRelationalDelegate):
 
 
 
-class lineEditRelationalDelegate(QSqlRelationalDelegate):
-    
-    
-    def createEditor(self,parent,option,index):
-        box = super(lineEditRelationalDelegate,self).createEditor(parent,option,index)
-               
-        edit = QLineEdit(parent)
-
-        c = QCompleter(edit)
-        c.setModel(box.model())
-        c.setCompletionColumn(box.modelColumn())
-        
-        edit.setCompleter(c)
-        return edit
-
-
-
 
 
 # makes qComboBox b searchable
@@ -50,15 +33,8 @@ def makeSearchable(b):
     b.setEditable(True)
     b.setInsertPolicy(QComboBox.NoInsert)
     b.lineEdit().editingFinished.connect(lambda:b.setCurrentText(b.itemText(b.currentIndex())))
-    
-   # b.lineEdit().setCompleter()
     #editing finished triggered when lineEdit loses focus.
-    #b.Model()
-    #modelColumn()
     
-    
-   # QCompleter.setModel()
-    #QCompleter.setCompletionColumn#column of model to use
     
     
     

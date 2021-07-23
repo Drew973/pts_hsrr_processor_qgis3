@@ -1,13 +1,9 @@
 from .database_dialog.database_interface import database_interface
 
-from .database_dialog import sql_task
 
 import io
-
 #import psycopg2
-from psycopg2.extras import DictCursor,execute_batch
 from qgis.PyQt.QtSql import QSqlQuery
-from qgis.utils import iface
 
 
 import os

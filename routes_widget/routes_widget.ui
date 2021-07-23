@@ -24,14 +24,14 @@
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="run_box">
+      <widget class="QComboBox" name="runBox">
        <property name="toolTip">
         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Run this route is for.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="filter_layer_button">
+      <widget class="QPushButton" name="filterLayerButton">
        <property name="toolTip">
         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Filter readings layer to only show this run.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
@@ -43,7 +43,7 @@
     </layout>
    </item>
    <item>
-    <widget class="QTableView" name="route_view">
+    <widget class="QTableView" name="view">
      <property name="acceptDrops">
       <bool>true</bool>
      </property>

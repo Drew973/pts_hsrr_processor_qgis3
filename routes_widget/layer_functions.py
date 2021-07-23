@@ -3,79 +3,51 @@ from qgis.core import QgsFeatureRequest
 
 #layer=qgislayer
 #section=string,
-#field=string
 
-
-def select_section(section,layer,field):
-    if field: 
-        try:
-            e="%s IN (%s)" %(double_quote(field),single_quote(section))#expression looks like "Column_Name" IN ('Value_1', 'Value_2', 'Value_N')
-            #Field names in double quotes, string in single quotes
-            layer.selectByExpression(e)
-            iface.mapCanvas().setExtent(layer.boundingBoxOfSelected())
-            iface.mapCanvas().refresh()
-        except Exception as e:
-            iface.messageBar().pushMessage('fitting tool:'+repr(e))
-    else:
-        iface.messageBar().pushMessage('fitting tool: Field not set.')
-
-
-def single_quote(s):
-    return "'%s'"%(s)
-
-
-def double_quote(s):
-    return '"%s"'%(s) 
-
-def dq(s):
-    return '"%s"'%(s) 
-
+        
+#single quote
 def sq(s):
     return "'%s'"%(s)
 
-#sects is list of sections.
-def select_sections(sects,layer,field,zoom=False):
-    print(sects)
-    e="%s IN (%s)" %(double_quote(field),','.join([single_quote(s) for s in sects]))#expression looks like "Column_Name" IN ('Value_1', 'Value_2', 'Value_N')
-    #Field names in double quotes, string in single quotes
+#double quote
+def dq(s):
+    return '"%s"'%(s) 
+
+
+#selects features of layer where field is in list vals
+def selectByVals(vals,layer,field):
+    e="%s IN (%s)" %(dq(field),','.join([sq(s) for s in vals]))#expression looks like "Column_Name" IN ('Value_1', 'Value_2', 'Value_N')
     layer.selectByExpression(e)
-    if zoom:
-        zoom_to_selected(layer)   
+        
         
 #zoom to selected features of layer. Works with any crs
-def zoom_to_selected(layer):
+def zoomToSelected(layer):
     a=iface.activeLayer()
     iface.setActiveLayer(layer)
     iface.actionZoomToSelected().trigger()
     iface.setActiveLayer(a)
-    #iface.mapCanvas().setExtent(layer.boundingBoxOfSelected())
-    #iface.mapCanvas().refresh()
+      
 
 
-#returns feature ids of features in run with s<=f_field<=e
-def ch_to_id(layer,run_field,run,f_field,s,e):
-    e='%s=%s and %d<=%s and %s<=%d'%(double_quote(run_field),single_quote(run),s,double_quote(f_field),double_quote(f_field),e)
-    request = QgsFeatureRequest().setFilterExpression(e)
+#returns fids in run and with s_chField-e_cFieldh overlapping s_ch and e_ch
+#s_ch float
+#e_ch float
+def readingsFids(layer,run,runField,s_ch,s_chField,e_ch,e_chField):
+    e = '{runField}={run} and {e_chField}>={s_ch} and {s_chField}<={e_ch}'
+    e = e.format(runField=dq(runField),run=sq(run),e_chField=dq(e_chField),s_ch=s_ch,s_chField=dq(s_chField),e_ch=e_ch)
+    print(e)
+    request = QgsFeatureRequest().setFilterExpression(e) 
+    print(request)
     return [f.id() for f in layer.getFeatures(request)]
+    
+    
+
+
+
+################################        
         
-
-
-def ch_to_features(layer,run,run_field,s,s_ch_field,e,e_ch_field):
-    exp="\"{run_field}\"='{run}' and \"{s_ch_field}\"<{e} and \"{e_ch_field}\">{s}"
-    exp = exp.format(run_field=run_field,run=run,s_ch_field=s_ch_field,e_ch_field=e_ch_field,s=s,e=e)
-    r = QgsFeatureRequest().setFilterExpression(exp)
-
-    #ids = layer.selectedFeatureIds()
-    #layer.selectByIds([f.id() for f in layer.getFeatures(r) ]+ids)
-    return layer.getFeatures(r)
-
-#use ids = layer.selectedFeatureIds() then layer.selectByIds to avoid losing selection.
-
-
-
-
-
-#"run"='bench mark 01' and 'TEST01'<="f_line" and "f_line"<='12'
+        
+    
 
 #filter layer to only show run
 #run=string. run_field=fieldname with run
@@ -84,14 +56,5 @@ def filter_by_run(layer,run_field,run):
     
     
     
-import math
 
-def chainages_to_feats(layer,run_field,run,ch_field,s,e):
-    s = math.ceil(float(s))
-    e = math.ceil(float(e))
-    
-    exp = '%s=%s and %d<=%s and %s<=%d'%(dq(run_field),sq(run),s,dq(ch_field),dq(ch_field),e)
-    request = QgsFeatureRequest().setFilterExpression(exp)
-    #return [f.id() for f in layer.getFeatures(request)]
-    return layer.getFeatures(request)
 

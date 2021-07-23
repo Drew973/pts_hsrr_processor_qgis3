@@ -14,4 +14,6 @@ $$ LANGUAGE plpgsql;
 
 
 
+alter function run_ch_to_pt(rn varchar,ch numeric) set search_path to hsrr,public;
+
 --select run_ch_to_pt('A69 DBFO EB CL1',0)

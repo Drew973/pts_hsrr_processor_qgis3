@@ -54,6 +54,8 @@ class dictDialog(QDialog):
         return {k:widgetVal(self.widgets[k]) for k in self.widgets}
     
     
+    def widget(self,key):
+        return self.widgets[key]
     
     def __getitem__(self,key):
         return widgetVal(self.widgets[key])

@@ -10,26 +10,37 @@ map matching techniques
 have Dijkstra's algorithm in plpgsql
 
 
-
 upload runs to dialog?
 help to top menu
 
 
-
-
-
 get section_changes chainage and point.
 
+
 how to get changes without getting wrong side of dual carriageway?
+add them,find section,merge where section same
+
+
+use section_changes table instead of routes.
+edit this in plugin.
+arguably more intuitive
+easier to check
+easier autofitting-just add passed nodes and try to find section
+
+
+redo process(function) or replace routes with view.
 
 
 
-section_changes as view?
+delegate for section?
+	section widget.
 
 
+network has dummy section 'D'
 
-make
-validatedTextEditDelegate.
-text edit with validator.
 
-use to enforce foreign key constraints on tableViews.
+want way to:
+	select sec from feature
+	select feature from sec
+	select ch from feature
+	select feature from ch
