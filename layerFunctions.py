@@ -35,9 +35,7 @@ def zoomToSelected(layer):
 def readingsFids(layer,run,runField,s_ch,s_chField,e_ch,e_chField):
     e = '{runField}={run} and {e_chField}>={s_ch} and {s_chField}<={e_ch}'
     e = e.format(runField=dq(runField),run=sq(run),e_chField=dq(e_chField),s_ch=s_ch,s_chField=dq(s_chField),e_ch=e_ch)
-    print(e)
     request = QgsFeatureRequest().setFilterExpression(e) 
-    print(request)
     return [f.id() for f in layer.getFeatures(request)]
     
     

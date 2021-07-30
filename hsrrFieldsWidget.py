@@ -23,9 +23,7 @@ class hsrrFieldsWidget(fieldsWidget.fieldsWidget):
         
         
     def lowestSelectedReading(self,run):
-        #returns 0 or lowest selectes reading
-        print(run)
-        
+        #returns 0 or lowest selectes reading        
         if self.isSet('readings') and self.isSet('s_ch') and self.isSet('run'):
             
             chainages= [f[self['s_ch']] for f in self['readings'].selectedFeatures() if f[self['run']]==run and f[self['s_ch']]]
@@ -36,13 +34,21 @@ class hsrrFieldsWidget(fieldsWidget.fieldsWidget):
             
     
     
-    def selectOnNetwork(self):
+    def selectOnNetwork(self,sects):
         layer = self['network']
         secField = self['label']
         
         if layer:
-            layerFunctions.selectByVals([self.text], layer, secField)
+            layerFunctions.selectByVals(sects, layer, secField)
     
     
     def selectedSection(self):
-        return self.getSelectedFeature('network')
+        if self['label'] and self.getSelectedFeature('network'):
+            return self.getSelectedFeature('network')[self['label']]
+
+
+    def filterReadingsLayer(self,run):
+        layer = self['readings']
+        field = self['run']
+        layer.setSubsetString("%s = '%s'"%(field,run))
+        

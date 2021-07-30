@@ -1,50 +1,23 @@
-from qgis.PyQt import uic
-from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
-from qgis.PyQt.QtSql import QSqlTableModel
-
-from qgis.utils import iface
-
-from qgis.PyQt.QtWidgets import QMessageBox
+#import traceback
 import os
 
-from . import layerFunctions
-
-from .betterTableModel import betterTableModel
-from . import delegates
-
+from PyQt5.QtWidgets import QDoubleSpinBox,QMessageBox
+from PyQt5.QtSql import QSqlTableModel,QSqlQueryModel,QSqlDatabase
 from PyQt5.QtWidgets import QDockWidget,QMenu,QMenuBar
 from PyQt5.QtGui import QDesktopServices
 
-#from .routes_widget.layer_functions import select_sections
-from .database_dialog.database_dialog import database_dialog
-from . import hsrr_processor_dd,file_dialogs
-from . import changesModel
+from qgis.PyQt import uic
+from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
+from qgis.utils import iface
 
-#from . import fieldsWidget
-
-
-
-from . import hsrrFieldsWidget
-
-import traceback
-
-
+from .betterTableModel import betterTableModel
 from .dict_dialog import dictDialog
-from PyQt5.QtWidgets import QDoubleSpinBox
+from .database_dialog.database_dialog import database_dialog
+from . import file_dialogs,changesModel,hsrrFieldsWidget,layerFunctions,runInfoModel,delegates,databaseFunctions
 
 
-
-def fixHeaders(path):
-    with open(path) as f:
-        t=f.read()
-    r={'qgsfieldcombobox.h':'qgis.gui','qgsmaplayercombobox.h':'qgis.gui'}
-    for i in r:
-        t=t.replace(i,r[i])
-    with open(path, "w") as f:
-        f.write(t)
 
 uiPath=os.path.join(os.path.dirname(__file__), 'hsrr_processor_dockwidget_base.ui')
-fixHeaders(uiPath)
 FORM_CLASS, _ = uic.loadUiType(uiPath)
 
 
@@ -55,111 +28,113 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
     def __init__(self, parent=None):
         super(hsrrProcessorDockWidget, self).__init__(parent)
         self.setupUi(self)
+        print('hsrr processor __init__')
     
+        self.connectDialog = database_dialog(self,'hsrrProcessorDb')
+
+
         self.addRowDialog = dictDialog(parent=self)
         w = QDoubleSpinBox(self.addRowDialog)
         w.setSingleStep(0.1)
         self.addRowDialog.addWidget('ch',w,True)
         self.addRowDialog.accepted.connect(self.addRow)
     
-        self.connectDialog = database_dialog(self)
-        self.connectDialog.accepted.connect(self.connect)    
-    
-    
-    
         self.initRunInfoMenu()
         self.initRequestedMenu()
         self.initChangesMenu()
         self.initTopMenu()
         self.initFw()
-        self.disconnect()
+    
+    
+        self.connectDialog.accepted.connect(self.connectToDatabase)   
+        self.connectToDatabase(QSqlDatabase(),warning=False)#QSqlDatabase() will return default connection,
 
-        
-
-    #def onConnectAct(self):
-     #   db=database_dialog(self).exec_()
-        
 
     def initFw(self):
         self.fw = hsrrFieldsWidget.hsrrFieldsWidget(self)
         self.tabs.insertTab(0,self.fw,'Fields')
-        
     
     
     
-    def connect(self):
-        db = self.connectDialog.get_db()
-        
+    def connectToDatabase(self,db=None,warning=True):
+        if not db:
+            db = self.connectDialog.get_db()
+
         if not db.isOpen():
             db.open()
             
-        if db.isOpen():
+        if not db.isOpen():
+            self.setWindowTitle('Not connected - HSRR Processer')
+            self.fittingMenu.setEnabled(False)
+            self.uploadMenu.setEnabled(False)       
+            self.prepareAct.setEnabled(False)
             
-            try:
-                self.dd = hsrr_processor_dd.hsrr_dd(db)
-                self.dd.sql('set search_path to hsrr,public;')
-                self.setWindowTitle('Connected to %s - HSRR Processer'%(db.databaseName()))
-                self.connectRunInfo(db)
-                self.connectCoverage(db)
-                self.connectChangesModel(db)
-                self.addRowAct.setEnabled(True)
-    
-            except:
-                iface.messageBar().pushMessage("could not connect to database. %s"%(traceback.format_exc()),duration=6)
-                self.disconnect()
-
+            if warning:
+                iface.messageBar().pushMessage('could not connect to database',duration=6)            
+            
         else:
-            self.disconnect()
-            
+            self.setWindowTitle('Connected to %s - HSRR Processer'%(db.databaseName()))
+           
+            self.uploadMenu.setEnabled(True)            
+            self.fittingMenu.setEnabled(True)
+            self.prepareAct.setEnabled(True)
+       
+        self.connectRunInfo(db)
+        self.connectCoverage(db)
+        self.connectChangesModel(db)
+        self.connectNetworkModel(db)
+                
 
-    def disconnect(self):
-        self.setWindowTitle('Not connected - HSRR Processer')
-        self.dd = None
-        self.changesModel = None
-        self.runsModel = None
-        self.addRowAct.setEnabled(False)
+
+    def connectNetworkModel(self,db):
+        self.networkModel = QSqlQueryModel(self)
+        self.networkModel.setQuery('select sec from hsrr.network',db)
+       # self.changesView.set delegates.secWidgetDelegate
+
         
     
     def connectChangesModel(self,db):    
-        self.changesModel = changesModel.changesModel(db)
+        m = changesModel.changesModel(db)
         
-        self.runBox.currentTextChanged.connect(self.changesModel.setRun)
-        self.changesModel.setRun(self.runBox.currentText())
+        self.runBox.currentTextChanged.connect(m.setRun)
+        m.setRun(self.runBox.currentText())
         
-        self.changesView.setModel(self.changesModel)
-        [self.changesView.setColumnHidden(col, True) for col in self.changesModel.hiddenColIndexes]#hide run column
+        self.changesView.setModel(m)
+        [self.changesView.setColumnHidden(col, True) for col in m.hiddenColIndexes]#hide run column
         self.changesView.resizeColumnsToContents()
-        self.changesView.setItemDelegateForColumn(self.changesModel.fieldIndex('sec'),delegates.lineEditRelationalDelegate())    
+        #self.changesView.setItemDelegateForColumn(self.changesModel.fieldIndex('sec'),delegates.lineEditRelationalDelegate())
+        secCol = m.fieldIndex('sec')
+        self.changesView.setItemDelegateForColumn(secCol,
+            delegates.secWidgetDelegate(parent=self,fw=self.fw,model=m,column=secCol))          
 
+        self.changesView.setItemDelegateForColumn(m.fieldIndex('ch'),
+            delegates.chainageWidgetDelegate(parent=self,fw=self.fw))     
 
+    
    # def connectSectionsModel(self,db):
     #    self.sectionsModel = QSqlQueryModel(db)
         
         
 
     def connectRunInfo(self,db):
-        self.runsModel = QSqlTableModel(parent=self,db=db)
-        self.runsModel.setTable('hsrr.run_info')
-        self.runsModel.setSort(self.runsModel.fieldIndex("run"),Qt.AscendingOrder)
-        self.runsModel.setEditStrategy(QSqlTableModel.OnFieldChange)
-        self.runsModel.select()
-        self.runInfoView.setModel(self.runsModel)
+        self.runsModel = runInfoModel.runInfoModel(parent=self,db=db)       
+        self.runsView.setModel(self.runsModel)
         self.runBox.setModel(self.runsModel)
-        self.runBox.setCurrentIndex(1)
+        self.runBox.setCurrentIndex(0)
        # self.run_info_view.setItemDelegateForColumn(self.run_info_model.fieldIndex('file'),delegates.readOnlyText())#makes column uneditable
         
     
         
     def showAddDialog(self):
-        
-        print(self.fw.lowestSelectedReading(self.currentRun()))
-        self.addRowDialog.widget('ch').setValue(self.fw.lowestSelectedReading(self.currentRun()))
-        self.addRowDialog.show()
+        if self.currentRun():
+            self.addRowDialog.widget('ch').setValue(self.fw.lowestSelectedReading(self.currentRun()))
+            self.addRowDialog.show()
     
     
     def addRow(self):
-        if self.changesModel:
-            self.changesModel.addRow(run=self.currentRun(),ch=self.addRowDialog['ch'])
+        
+        if self.changesView.model():
+            self.changesView.model().addRow(run=self.currentRun(),ch=self.addRowDialog['ch'])
         else:
             iface.messageBar().pushMessage("Not connected to database.",duration=4)
 
@@ -175,26 +150,43 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         databaseMenu = self.topMenu.addMenu('Database')
         connectAct = databaseMenu.addAction('Connect to database')
         connectAct.triggered.connect(self.connectDialog.show)
-        newAct = databaseMenu.addAction('Setup database for hsrr')
-        newAct.triggered.connect(self.prepareDatabase)     
+        self.prepareAct = databaseMenu.addAction('Setup database for hsrr')
+        self.prepareAct.triggered.connect(self.prepareDatabase)     
         
         
-        uploadMenu = self.topMenu.addMenu('Upload')
-        uploadReadingsAct = uploadMenu.addAction('Upload readings spreadsheet...')
+        self.uploadMenu = self.topMenu.addMenu('Upload')
+        uploadReadingsAct =  self.uploadMenu.addAction('Upload readings spreadsheet...')
         uploadReadingsAct.triggered.connect(self.uploadRunsDialog)
-        uploadReadingsFolderAct = uploadMenu.addAction('Upload all readings in folder...')
+        uploadReadingsFolderAct =  self.uploadMenu.addAction('Upload all readings in folder...')
         uploadReadingsFolderAct.triggered.connect(self.uploadFolderDialog)        
         
-        routesMenu = self.topMenu.addMenu('Fitting')
-        setXspAct = routesMenu.addAction('Set xsp of run...')
-        self.addRowAct = routesMenu.addAction('Add row...')
+        
+        self.fittingMenu = self.topMenu.addMenu('Fitting')
+        setXspAct = self.fittingMenu.addAction('Set xsp of run...')
+        
+        self.addRowAct = self.fittingMenu.addAction('Add row...')
         self.addRowAct.triggered.connect(self.showAddDialog)
-        self.addRowAct.setEnabled(False)
+        
+        autofitAct = self.fittingMenu.addAction('autofit run')
+        autofitAct.triggered.connect(self.autofit)
+
         
         helpMenu = self.topMenu.addMenu('Help')
-        openHelpAct = helpMenu.addAction('open help')
+        openHelpAct = helpMenu.addAction('Open help')
         openHelpAct.setToolTip('Open help in your default web browser')
         openHelpAct.triggered.connect(self.openHelp)
+
+        self.filterLayerButton.clicked.connect(self.filterReadingsLayer)
+        
+
+    def filterReadingsLayer(self):
+        run = self.currentRun()
+        if run:
+            self.fw.filterReadingsLayer(run)
+
+
+    def autofit(self):
+        self.changesView.model().autofit(self.getCurrentRun())
 
 
     def setXsp(self):
@@ -202,7 +194,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
 
 
     def initChangesMenu(self):
-        self.rows_menu = QMenu()
+        self.rows_menu = QMenu(self)
         self.rows_menu.setToolTipsVisible(True)
         
         self.changesView.setContextMenuPolicy(Qt.CustomContextMenu);
@@ -213,35 +205,26 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.selectOnLayers_act.setToolTip('select these rows on network and/or readings layers.')
         self.selectOnLayers_act.triggered.connect(self.selectOnLayers)
 
-        self.select_from_layers_act=self.rows_menu.addAction('select from layers')
-        self.select_from_layers_act.setToolTip('set selected rows from selected features of readings layer.')
+        self.selecFromLayersAct=self.rows_menu.addAction('select from layers')
+        self.selecFromLayersAct.setToolTip('set selected rows from selected features of readings layer.')
   #      self.select_from_layers_act.triggered.connect(self.select_from_layers)
 
         self.deleteRowsAct=self.rows_menu.addAction('delete selected rows')
-        self.deleteRowsAct.triggered.connect(lambda:self.changesModel.dropRows(self.changesView.selectionModel().selectedRows()))
+        self.deleteRowsAct.triggered.connect(lambda:self.changesView.model().dropRows(self.changesView.selectionModel().selectedRows()))
 
-        self.add_menu=self.rows_menu.addMenu('add new row')
-        self.row_after_act=self.add_menu.addAction('add empty row after last selected')
-#        self.row_after_act.triggered.connect(self.add_empty_row)
 
-        self.add_from_feats_act=self.add_menu.addAction('add new row from selected features')
- #       self.add_from_feats_act.triggered.connect(self.add_from_feats)
-        
-        
-        
         
     #select selected rows of routes table on layers
     
     def selectOnLayers(self):
 
         inds = self.getSelectedRows()
-        print([i.row() for i in inds])
         
         
         if inds:
             
             #select on network
-            secCol = self.changesModel.fieldIndex('sec')
+            secCol = self.changesView.model().fieldIndex('sec')
             sects = [i.sibling(i.row(),secCol).data() for i in inds] 
             sects = [s for s in sects if not s=='D']
             
@@ -260,7 +243,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             e_ch_Field = self.fw['e_ch']
             runField = self.fw['run']
             
-            ch_field=self.changesModel.fieldIndex('ch')
+            ch_field = self.changesView.model().fieldIndex('ch')
             
             if readingsLayer and s_chField and e_ch_Field:
                 
@@ -311,47 +294,35 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         QDesktopServices.openUrl(QUrl(help_path))
         
 
-    def checkConnected(self):
-        if self.dd:
-            if self.dd.con:
-                return True
 
-        iface.messageBar().pushMessage('fitting tool: Not connected to database')
-        return False
-
-
-    def uploadRuns(self,runs):
-        for f in runs:
-            if self.dd.is_uploaded(f):
-                self.upload_log.appendPlainText('%s is already uploaded\n'%(f))
-            else:
-                r=self.dd.upload_run_csv(f)
-                if r==True:
-                    self.upload_log.appendPlainText('sucessfully uploaded %s\n'%(f))
-                else:
-                    self.upload_log.appendPlainText('error uploading %s:%s\n'%(f,str(r)))
-        self.update()
-        self.refresh_run_info()
-
+    def uploadReadings(self,uri):
+        con = self.connectDialog.get_con()
+        if con:
+            
+            try:
+                self.runsModel.uploadReadings(uri)
+                
+                self.upload_log.appendPlainText('sucessfully uploaded %s\n'%(uri))
+                                                
+            except Exception as e:
+                self.upload_log.appendPlainText('error uploading %s:\n%s\n'%(uri,str(e)))#traceback.format_exc()
+                
 
     def uploadRunsDialog(self):
-        if self.checkConnected():
-            files=file_dialogs.load_files_dialog('.xls','upload spreadsheets')
-            if files:
-             #   for f in files:#?
-                 #   self.uploadRuns(files)
-                self.uploadRuns(files)
+        files = file_dialogs.load_files_dialog('.xls','upload spreadsheets')
+        if files:
+            for f in files:
+                self.uploadReadings(f)
             
     def uploadFolderDialog(self):
         folder=file_dialogs.load_directory_dialog('.xls','upload all .xls in directory')
         if folder:
-            self.uploadRuns(file_dialogs.filter_files(folder,'.xls'))
+            for f in file_dialogs.filter_files(folder,'.xls'):
+                self.uploadReadings(f)
                 
             
         
     def closeEvent(self, event):
-        if self.dd:
-            self.dd.disconnect()        
         self.closingPlugin.emit()
         event.accept()
 
@@ -382,40 +353,40 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
 
         
     def prepareDatabase(self):
-        if self.checkConnected():
-            msgBox=QMessageBox();
-            msgBox.setText("DON'T USE THIS PARTWAY THROUGH THE JOB! because this will erase any data in tables used by this plugin.");
-            msgBox.setInformativeText("Continue?");
-            msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No);
-            msgBox.setDefaultButton(QMessageBox.No);
-            i=msgBox.exec_()
-            if i==QMessageBox.Yes:
-                self.dd.setup_database()
-                iface.messageBar().pushMessage('fitting tool: prepared database')
-                self.rw.connect_to_dd(self.dd)
-
-
-    #drop selected run of run_info table
-    def dropRun(self):
-        r=self.runBox.currentText()
-        self.dd.sql("delete from run_info where run='{run}'",{'run':r})
-        self.rw.get_runs()
-
+        msgBox = QMessageBox();
+        msgBox.setText("DON'T USE THIS PARTWAY THROUGH THE JOB! because this will erase any data in tables used by this plugin.");
+        msgBox.setInformativeText("Continue?");
+        msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No);
+        msgBox.setDefaultButton(QMessageBox.No);
+        i = msgBox.exec_()
             
+        if i==QMessageBox.Yes:
+            try:
+                con = self.connectDialog.get_con()
+                databaseFunctions.runSetupFile(con=con,file='setup.txt',folder=os.path.join(os.path.dirname(__file__),'database'))
+                iface.messageBar().pushMessage('fitting tool: prepared database')            
+
+                
+            except Exception as e:
+                iface.messageBar().pushMessage(str(e))
+                
+   
+
+
 #for requested view
     def initRunInfoMenu(self):
-        self.run_info_menu = QMenu()
-        act=self.run_info_menu.addAction('drop run')
-        act.triggered.connect(lambda:self.dd.drop_runs([str(i.data()) for i in self.run_info_view.selectionModel().selectedRows(0)]))# selectedRows(0) returns column 0 (sec)
+        self.runInfoMenu = QMenu(self)
+        a = self.runInfoMenu.addAction('drop run')
+        a.triggered.connect(lambda:self.runsModel.dropRuns([str(i.data()) for i in self.runsView.selectionModel().selectedRows(0)]))# selectedRows(0) returns column 0 (sec)
 
-        self.runInfoView.setContextMenuPolicy(Qt.CustomContextMenu);
-        self.runInfoView.customContextMenuRequested.connect(lambda pt:self.run_info_menu.exec_(self.mapToGlobal(pt)))
+        self.runsView.setContextMenuPolicy(Qt.CustomContextMenu);
+        self.runsView.customContextMenuRequested.connect(lambda pt:self.runInfoMenu.exec_(self.mapToGlobal(pt)))
 
 
 #for requested view
     def initRequestedMenu(self):
         self.requested_menu = QMenu()
-        act = self.requested_menu.addAction('zoom to section')
+        zoomAct = self.requested_menu.addAction('zoom to section')
       #  act.triggered.connect(lambda:self.select_on_network([i.data() for i in self.requested_view.selectionModel().selectedRows()]))
         self.requested_view.setContextMenuPolicy(Qt.CustomContextMenu);
         self.requested_view.customContextMenuRequested.connect(lambda pt:self.requested_menu.exec_(self.mapToGlobal(pt)))

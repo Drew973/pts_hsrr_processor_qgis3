@@ -1,5 +1,5 @@
 
-qsqltable can work with ranges. Won't give any warnings if user sets to something invalid.
+qsqltable can work with ranges. Won't give any warnings if user sets to something invalid. can use custom delegate and QValidator to solve
 
 
 have pg_routing in kashyyk as well as local.
@@ -44,3 +44,23 @@ want way to:
 	select feature from sec
 	select ch from feature
 	select feature from ch
+
+
+
+
+
+drop table test;
+
+create table test as
+
+with a as(
+select run,ch,pt from passed_nodes 
+union 
+select run,ch,pt from gaps
+	)
+	
+,b as (select *,lead(pt) over (partition by run order by ch) from a)
+
+
+select *,st_makeLine(pt,lead),sr_between_points(pt,lead,15) from b where run='SEW NB CL1'
+order by run,ch

@@ -43,6 +43,27 @@ $$ LANGUAGE plpgsql;
 
 
 
+--independent
+CREATE OR REPLACE FUNCTION srs_between_points(a geometry,b geometry,tol float=50)
+RETURNS sec_rev[] AS $$	
+Declare	
+    BEGIN
+		return array(
+			with c as(
+			select (sec,false)::sec_rev as sr,geom from network where st_dwithin(a,geom,tol) and st_dwithin(b,geom,tol) and (rbt or st_lineLocatePoint(geom,a)<st_lineLocatePoint(geom,b))
+			union
+			select (sec,true)::sec_rev as sr,geom from network where (not one_way) and st_dwithin(a,geom,tol) and st_dwithin(b,geom,tol) and (rbt or st_lineLocatePoint(geom,a)>st_lineLocatePoint(geom,b))
+			)
+			select sr from c order by st_distance(geom,a)+st_distance(geom,b)
+		);
+	END;	
+$$ LANGUAGE plpgsql;
+
+alter function srs_between_points set search_path to hsrr,publicsele
+
+
+
+
 CREATE OR REPLACE FUNCTION ends_dist(sr sec_rev,a geometry,b geometry)
 RETURNS float AS $$	
 Declare	g geometry=geom from network where sec=(sr).sec;
@@ -52,18 +73,11 @@ Declare	g geometry=geom from network where sec=(sr).sec;
 $$ LANGUAGE plpgsql;
 
 
-
 CREATE OR REPLACE FUNCTION run_ch_to_pt(rn text,ch numeric)
-RETURNS geometry AS $$	
+RETURNS geometry AS $$
     BEGIN
-		if ch%0.1=0 then
-			return s_point from readings where run=rn and s_ch=ch;
-		end if;
-		
-		return ST_LineInterpolatePoint((select vect from readings where run=rn and s_ch<=ch and ch<= e_ch),ch%0.1);
-	END;	
+		return ST_LineInterpolatePoint(vect,ch-s_ch) from readings where run=rn and s_ch<=ch and ch<= e_ch;
+	END;
 $$ LANGUAGE plpgsql;
 
-alter function run_ch_to_pt(rn text,ch numeric) set search_path to hsrr,public;
-
-	
+alter function run_ch_to_pt set search_path to hsrr,public;

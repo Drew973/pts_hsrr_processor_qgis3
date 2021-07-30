@@ -78,7 +78,7 @@ class layer:
 
 
 
-    def getSelectedFeature(self):
+    def selectedFeature(self):
         layer = self.get()
         
         if layer:
@@ -99,9 +99,6 @@ class layer:
                 return None
             
             return r
-
-
-
 
 
 
@@ -146,6 +143,7 @@ class fieldsWidget(QWidget):
     
     def getSelectedFeature(self,key):
         return self.widgets[key].selectedFeature()
+    
     
     def getField(self,key):
         pass

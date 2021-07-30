@@ -1,7 +1,9 @@
 
-from PyQt5.QtWidgets import QStyledItemDelegate,QLineEdit
 from PyQt5.QtSql import QSqlRelationalDelegate
-from PyQt5.QtWidgets import QComboBox,QLineEdit,QCompleter
+from PyQt5.QtWidgets import QComboBox,QLineEdit,QCompleter,QStyledItemDelegate
+from . import secWidget
+from . import chainageWidget
+
 
 
 #read only delegate ro display label
@@ -44,6 +46,60 @@ class lineEditRelationalDelegate(QSqlRelationalDelegate):
 
 
 
+class secWidgetDelegate(QStyledItemDelegate):
+    
+    def __init__(self,fw,model,column,parent=None):
+        super(secWidgetDelegate,self).__init__(parent)
+        self.fw = fw
+        self.model = model
+        self.column = column
+        
+        
+    def createEditor(self,parent,option,index):
+        w = secWidget.secWidget(fw=self.fw,parent=parent,model=self.model,column=self.column)
+        return w
+
+
+
+
+#The setEditorData() function is called when an editor is created to initialize it with data from the model:
+#default fine
+
+
+#spatial index per widget. performance seem ok.
+#might be better to 
+
+
+class chainageWidgetDelegate(QStyledItemDelegate):
+    
+    def __init__(self,fw,parent=None):
+        super(chainageWidgetDelegate,self).__init__(parent)
+        self.fw = fw
+        
+        
+#clicking map causes delegate to lose focus and widget to stop existing,meaning setValue doesn't do anything?
+#get around this with lamdba function
+        
+    def createEditor(self,parent,option,index):
+        w = chainageWidget.runChainageWidget(parent=parent,layer=self.fw['readings'],field=self.fw['s_ch'])
+        w.tool.chainageFound.connect(lambda val:index.model().setData(index,val))
+        
+        
+        return w
+
+
+ #   def setLayer(self,layer):
+     #   self.layer = layer
+    #    #symbolFeatureCountMapChanged
+     #   self.index = QgsSpatialIndex(layer.getFeatures(),None,QgsSpatialIndex.FlagStoreFeatureGeometries )
+
+
+#The setModelData() function is called to commit data from the editor to the model when editing is finished:
+   #default works.
+   # def setModelData(self,editor,model,index):
+    #    model.setData(index,editor.value())
+
+
 
 # makes qComboBox b searchable
 def makeSearchable(b):
@@ -61,91 +117,3 @@ def makeSearchable(b):
     #QCompleter.setCompletionColumn#column of model to use
     
     
-    
-'''
-class fileWidgetDelegate : public QStyledItemDelegate
-{
-public:
-    explicit fileWidgetDelegate(QObject *parent = nullptr,QString filter="");
-
-    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,const QModelIndex &index) const override;
-
-    void setEditorData(QWidget *editor, const QModelIndex &index) const override;
-
-    void setModelData(QWidget *editor, QAbstractItemModel *model,const QModelIndex &index) const override;
-
-
-     // setTextEditable(false);
-     // setFilter("Images (*.png *.bmp *.jpg)");
-
-
-    void setTextEditable(bool editable);
-    void setFilter(QString filt);
-
-    bool textEditable=true;
-    QString filter="";
-
-
-
-};
-
-#endif // FILEWIDGETDELEGATE_H
-
-
-
-
-
-
-
-#include "filewidgetdelegate.h"
-#include "filewidget.h"
-
-
-fileWidgetDelegate::fileWidgetDelegate(QObject *parent,QString filter) : QStyledItemDelegate(parent)
-{
-    if (not filter.isEmpty()){setFilter(filter);}
-}
-
-
-
-
-QWidget *fileWidgetDelegate::createEditor(QWidget *parent,const QStyleOptionViewItem &option,const QModelIndex &index) const
-{
-     fileWidget * w = new fileWidget(parent);
-     w->setTextEditable(textEditable);
-     w->setFilter(filter);
-     return w;
-}
-
-
-//see https://doc.qt.io/qt-5/qtwidgets-itemviews-spinboxdelegate-example.html
-void fileWidgetDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
-{
-    fileWidget * fw = static_cast<fileWidget*>(editor);//editor to fileWidget *
-    fw->setText(index.data().toString());
-}
-
-
-void fileWidgetDelegate::setModelData(QWidget *editor, QAbstractItemModel *model,const QModelIndex &index) const
-{
-    fileWidget * fw = static_cast<fileWidget*>(editor);//editor to fileWidget *
-    model->setData(index, fw->currentFile(), Qt::EditRole);
-}
-
-
-
-void fileWidgetDelegate::setTextEditable(bool editable)
-{
-    textEditable=editable;
-}
-
-
-
-void fileWidgetDelegate::setFilter(QString filt)
-{
-    filter=filt;
-}
-
-
-
-'''

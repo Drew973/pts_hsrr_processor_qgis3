@@ -1,3 +1,5 @@
+set search_path to hsrr,public;
+
 create table if not exists hsrr.requested(
 sec varchar references network(sec),
 reversed bool,

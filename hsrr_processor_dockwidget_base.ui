@@ -35,9 +35,9 @@
           </attribute>
           <layout class="QVBoxLayout" name="verticalLayout">
            <item>
-            <widget class="QTableView" name="runInfoView">
+            <widget class="QTableView" name="runsView">
              <property name="toolTip">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;run_info table. Ensure benchmark and season fields correct.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;run_info table.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="selectionMode">
               <enum>QAbstractItemView::MultiSelection</enum>
@@ -73,10 +73,23 @@
              <item>
               <widget class="QComboBox" name="runBox"/>
              </item>
+             <item>
+              <widget class="QPushButton" name="filterLayerButton">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Filter readings layer to this run.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+               <property name="text">
+                <string>Filter layer</string>
+               </property>
+              </widget>
+             </item>
             </layout>
            </item>
            <item>
             <widget class="QTableView" name="changesView">
+             <property name="alternatingRowColors">
+              <bool>true</bool>
+             </property>
              <property name="selectionBehavior">
               <enum>QAbstractItemView::SelectRows</enum>
              </property>
@@ -112,6 +125,9 @@
            </item>
            <item>
             <widget class="QTableView" name="requested_view">
+             <property name="alternatingRowColors">
+              <bool>true</bool>
+             </property>
              <property name="selectionBehavior">
               <enum>QAbstractItemView::SelectRows</enum>
              </property>

@@ -46,3 +46,20 @@ con=psycopg2.connect(host='192.168.5.157',dbname='pts2023_06_bracknell_hsrr',use
 cur=con.cursor()
 with con:
     cur.copy_from(csv_like,table,sep=',',columns=['raw_ch','ts','rl','start_lon','start_lat','end_lon','end_lat','f_line','run'])
+
+
+
+import psycopg2
+
+
+def uploadRun(con,filePath):
+    cur = con.cursor()
+    cur.execute('select hsrr.add_to_run_info(%(filename)s)',{'fileName':filePath})
+    print(cur.fetchall())
+
+
+con = psycopg2.connect(host='localhost',dbname='hsrr_test',user='postgres')
+
+
+con.close()
+

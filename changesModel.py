@@ -13,7 +13,6 @@ def dbToCon(db):
     return psycopg2.connect(host=db.hostName(),dbname=db.databaseName(),user=db.userName(),password=db.password())
 
 
-
 class changesModel(QSqlRelationalTableModel):
 
     
@@ -42,10 +41,6 @@ class changesModel(QSqlRelationalTableModel):
             self.removeRows(r,1)
         self.select()
         
-        
-    def setXSPs(self,run,xsp):
-        pass
-        
       
         
     def addRow(self,run,sec='D',rev=None,xsp=None,ch=None):
@@ -59,7 +54,20 @@ class changesModel(QSqlRelationalTableModel):
         self.select()
         
     
+    def autofit(self,run):
+        with dbToCon(self.database()) as con:
+            con.cursor().execute('select hsrr.autofit(%(run)s)',{'run':run})
         
+        self.select()
+
+        
+    def setXsp(self,xsp,run):
+        with dbToCon(self.database()) as con:
+            con.cursor().execute('update hsrr.section_changes set xsp=%(xsp)s where run = %(run)s',{'xsp':xsp,'run':run})
+        
+        self.select()
 
         
         
+        
+       

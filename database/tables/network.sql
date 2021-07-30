@@ -1,4 +1,6 @@
-create table if not exists hsrr.network
+set search_path to hsrr,public;
+
+create table if not exists network
     (
     sec varchar primary key,
 	geom geometry('linestring',27700),

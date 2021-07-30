@@ -6,6 +6,10 @@ from PyQt5.QtCore import Qt,QSettings,pyqtSignal
 from PyQt5.QtSql import QSqlDatabase
 from PyQt5.QtWidgets import QAction,QDialog,QApplication#,QShortcut #
 
+
+
+import psycopg2
+
 #dialog to return QSqlDatabase. can get psycopyg2 connection from this.
 
 
@@ -28,7 +32,7 @@ exec() returns QSqlDatabase
 class database_dialog(QDialog,FORM_CLASS):
     connected = pyqtSignal(QSqlDatabase)
 
-    def __init__(self,parent=None):
+    def __init__(self,parent=None,name='databaseName'):
         super(QDialog,self).__init__(parent)
         self.setupUi(self)
         self.connections_box.currentIndexChanged.connect(self.get_connection_info)
@@ -52,9 +56,7 @@ class database_dialog(QDialog,FORM_CLASS):
         
         self.OkButton.clicked.connect(self.accept)
         self.cancelButton.clicked.connect(self.reject)
-        
-        print('init')
-
+        self.name = name
 
 
    # def accept(self):
@@ -100,7 +102,6 @@ class database_dialog(QDialog,FORM_CLASS):
         super(database_dialog,self).accept()
 
     def connect(self):
-        print('test')
         db = self.get_db()
         if db.open():
             self.set_connected(True,db)
@@ -108,7 +109,6 @@ class database_dialog(QDialog,FORM_CLASS):
             self.set_connected(False,db)
             
     def set_connected(self,connected,db=None):
-        print(connected)
         if connected:
             self.status.setText('Connected')
             if db:
@@ -120,14 +120,18 @@ class database_dialog(QDialog,FORM_CLASS):
 
 #create QSqlDatabase from text edits 
     def get_db(self):
-        db=QSqlDatabase.addDatabase('QPSQL')
+        db=QSqlDatabase.addDatabase('QPSQL',self.name)
         db.setHostName(self.host.text())
         db.setDatabaseName(self.database.text())
         db.setUserName(self.user.text())
         db.setPassword(self.password.text())
         return db
-        
-        
+   
+
+    def get_con(self):
+        return psycopg2.connect(host=self.host.text(),dbname=self.database.text(),user=self.user.text(),password=self.password.text())
+   
+     
 #finds postgres connections in qgis settings.
 def get_postgres_connections():
     settings = QSettings()

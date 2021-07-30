@@ -4,7 +4,7 @@ import psycopg2
 from . import sql_task
 from qgis.core import QgsApplication
 
-
+import io
 import time
 
 import os
@@ -38,9 +38,16 @@ class database_interface:
         self.db =db #psycopg2 better than QSqlDatabase but need this for qsqltablemodels etc.
         if not self.db.isOpen():
             self.db.open()
-        self.con=db_to_con(db)
-        self.cur=self.con.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        self.task=None
+            
+        if self.db.isOpen():
+            self.con = db_to_con(db)
+            self.task = None
+
+        else:
+            self.con = None
+            self.cur = None
+            self.task = None
+
 
     def disconnect(self):
         self.db.close()
@@ -53,31 +60,38 @@ class database_interface:
 
 
     def get_cur(self):
-        con=self.get_con()
+        con = self.get_con()
         if con:
-            return con.cursor()
+            return con.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         
 #script=filename to give in error message when failed to run script
     def sql(self,q,args={},ret=False,script=None):
         try:
-            with self.con:
-                if args:
-                    self.cur.execute(q,args)
-                else:
-                    self.cur.execute(q)#with makes con commit here
-                if ret:
-                    return self.cur.fetchall()
+            con = self.get_con()
+            if con:
+                
+                with con:
+                    
+                    cur = con.cursor()
+                    if args:
+                        cur.execute(q,args)
+                    else:
+                        cur.execute(q,args)#with makes con commit here
+                    if ret:
+                        return cur.fetchall()
 
 
         except psycopg2.ProgrammingError as e:
             #exq=str(cur.query)#cur.query() gives type error because cur.query is a (bytes)string.
-            self.con.rollback()
+            con.rollback()
             if script:
                 raise ValueError('%s \nrunning: %s \n with args: %s'%(str(e),script,str(args)))
 
             else:
-                raise ValueError('%s\ngiven query: %s\n args:%s,\nattempted query: %s '%(str(e),str(q),str(args),str(self.cur.query)))
+                raise ValueError('%s\ngiven query: %s\n args:%s,\nattempted query: %s '%(str(e),str(q),str(args),str(cur.query)))
+
+
 
     def sql_script(self,script,args={}):
         s=script
@@ -90,18 +104,16 @@ class database_interface:
             except psycopg2.ProgrammingError as e:
                 raise ValueError('%s \nrunning: %s \n with args: %s'%(str(e),script,str(args)))
 
-                
-
-
 
 
     def query_to_csv(self,query,to,args=None,force_quote=None):
-        with open(to,'w') as f:
-            #)##SQL_for_file_output = "COPY ({0}) TO STDOUT WITH CSV HEADER".format(s)
-            if force_quote:
-                self.cur.copy_expert("COPY (%s) TO STDOUT WITH (FORMAT CSV,HEADER,FORCE_QUOTE%s)"%(query,force_quote),f)
-            else:
-                self.cur.copy_expert("COPY (%s) TO STDOUT WITH (FORMAT CSV,HEADER)"%(query),f)
+        if self.con:
+            with open(to,'w') as f:
+                #)##SQL_for_file_output = "COPY ({0}) TO STDOUT WITH CSV HEADER".format(s)
+                if force_quote:
+                    self.get_cur().copy_expert("COPY (%s) TO STDOUT WITH (FORMAT CSV,HEADER,FORCE_QUOTE%s)"%(query,force_quote),f)
+                else:
+                    self.get_cur().copy_expert("COPY (%s) TO STDOUT WITH (FORMAT CSV,HEADER)"%(query),f)
                 
     
     def disconnect(self):
@@ -169,3 +181,37 @@ class database_interface:
             #task.run()#happens imediatly. no progressbar/dialog displayed
 
 
+
+        
+ #reads text file, splits into sql files or sql commands seperated by ; then runs them in order.
+ #try/except in file with gui
+def runSetupFile(con,file,folder):
+  
+    with open(os.path.join(folder,file)) as f:
+        
+        for c in f.read().split(';'):
+            com = c.strip()
+            f = os.path.join(folder,com)
+            if com:
+                if os.path.exists(f):
+                    runScript(con,f)
+                else:
+                    con.cursor().execute(com) 
+ 
+    
+ 
+def runScript(con,script,args={}):
+        s = script
+        
+        if os.path.dirname(script)=='':
+            s = os.path.join(os.path.dirname(__file__),script)
+    
+        with open(s,'r') as f:
+            if args:
+                con.cursor().execute(f.read(),args)
+            else:
+                con.cursor().execute(f.read())
+
+
+        
+        
