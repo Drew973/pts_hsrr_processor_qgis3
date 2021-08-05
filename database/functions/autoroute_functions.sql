@@ -59,16 +59,7 @@ Declare
 	END;	
 $$ LANGUAGE plpgsql;
 
-alter function srs_between_points set search_path to hsrr,publicsele
-
-
-CREATE OR REPLACE FUNCTION autofit(rn text)
-RETURNS void AS $$	
-insert into section_changes(run,sec,reversed,ch,pt,note)
-select run,(srs[1]).sec,(srs[1]).rev,ch,pt,'auto' from autofit;
-$$ LANGUAGE sql;
-
-alter function autofit set search_path to hsrr,public;
+alter function srs_between_points set search_path to hsrr,public;
 
 
 

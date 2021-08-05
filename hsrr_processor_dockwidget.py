@@ -1,7 +1,7 @@
 #import traceback
 import os
 
-from PyQt5.QtWidgets import QDoubleSpinBox,QMessageBox
+from PyQt5.QtWidgets import QDoubleSpinBox,QMessageBox,QComboBox
 from PyQt5.QtSql import QSqlTableModel,QSqlQueryModel,QSqlDatabase
 from PyQt5.QtWidgets import QDockWidget,QMenu,QMenuBar
 from PyQt5.QtGui import QDesktopServices
@@ -37,6 +37,15 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         w.setSingleStep(0.1)
         self.addRowDialog.addWidget('ch',w,True)
         self.addRowDialog.accepted.connect(self.addRow)
+    
+    
+        self.setXspDialog = dictDialog(parent=self)
+        w = QComboBox(self.setXspDialog)
+        w.addItems(['CL1','CL2','CR1','CR2','RE','LE'])
+        self.setXspDialog.addWidget('xsp',w,True)
+        self.setXspDialog.accepted.connect(self.setXsp)  
+    
+    
     
         self.initRunInfoMenu()
         self.initRequestedMenu()
@@ -161,6 +170,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         
         self.fittingMenu = self.topMenu.addMenu('Fitting')
         setXspAct = self.fittingMenu.addAction('Set xsp of run...')
+        setXspAct.triggered.connect(self.setXspDialog.show)
         
         self.addRowAct = self.fittingMenu.addAction('Add row...')
         self.addRowAct.triggered.connect(self.showAddDialog)
@@ -188,8 +198,10 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
 
 
     def setXsp(self):
-        self.currentRun()
-
+        if self.changesView.model():      
+            self.changesView.model().setXsp(self.setXspDialog['xsp'],self.currentRun())
+            
+            
 
     def initChangesMenu(self):
         self.rows_menu = QMenu(self)
@@ -360,23 +372,17 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         
     def prepareDatabase(self):
         msgBox = QMessageBox();
-        msgBox.setText("DON'T USE THIS PARTWAY THROUGH THE JOB! because this will erase any data in tables used by this plugin.");
-        msgBox.setInformativeText("Continue?");
+        msgBox.setInformativeText("Perform first time setup for database?");
         msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No);
         msgBox.setDefaultButton(QMessageBox.No);
         i = msgBox.exec_()
             
         if i==QMessageBox.Yes:
-            try:
-                con = self.connectDialog.get_con()
-                databaseFunctions.runSetupFile(con=con,file='setup.txt',folder=os.path.join(os.path.dirname(__file__),'database'))
-                iface.messageBar().pushMessage('fitting tool: prepared database')            
-
-                
-            except Exception as e:
-                iface.messageBar().pushMessage(str(e))
-                
-   
+            with self.connectDialog.get_con() as con:
+                folder = os.path.join(os.path.dirname(__file__),'database')
+                file = os.path.join(folder,'setup.txt')
+                databaseFunctions.runSetupFile(cur=con.cursor(),file=file,printCom=True,recursive=False)
+                iface.messageBar().pushMessage('fitting tool: prepared database')
 
 
 #for requested view
@@ -387,6 +393,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
 
         self.runsView.setContextMenuPolicy(Qt.CustomContextMenu);
         self.runsView.customContextMenuRequested.connect(lambda pt:self.runInfoMenu.exec_(self.mapToGlobal(pt)))
+        
 
 
 #for requested view

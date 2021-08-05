@@ -1,3 +1,16 @@
+set search_path to hsrr,public;
+
+
+CREATE OR REPLACE FUNCTION autofit(rn text)
+RETURNS void AS $$	
+insert into hsrr.section_changes(run,sec,reversed,ch,pt,note)
+select run,(srs[1]).sec,(srs[1]).rev,ch,pt,'auto' from autofit where run=rn;
+$$ LANGUAGE sql;
+
+alter function autofit set search_path to hsrr,public;
+
+
+/*
 --shared
 CREATE OR REPLACE FUNCTION ps(vect geometry('linestring',27700),ca float=0.3)
 RETURNS sec_rev[] AS $$											 
@@ -20,7 +33,7 @@ RETURNS void AS $$
 	END;			
 $$ LANGUAGE plpgsql;
 
-/*
+
 
 CREATE OR REPLACE FUNCTION hsrr.autofit_run(rn varchar)
 RETURNS void AS $$											 
@@ -55,7 +68,7 @@ RETURNS void AS $$
 	END;			
 $$ LANGUAGE plpgsql;
 
-*/
+
 
 
 --autofit all possible sections then filter.
@@ -124,3 +137,7 @@ RETURNS float AS $$
 										  
     END;			
 $$ LANGUAGE plpgsql;
+
+
+*/
+

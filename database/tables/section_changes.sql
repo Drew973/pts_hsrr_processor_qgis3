@@ -13,7 +13,7 @@ pk serial primary key
 ,start_sec_ch numeric--route
 ,end_sec_ch numeric
 ,pt geometry('point')
-,note text
+,UNIQUE(run,ch)
 );
 
 
