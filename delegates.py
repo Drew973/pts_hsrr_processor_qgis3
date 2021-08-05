@@ -1,6 +1,8 @@
 
 from PyQt5.QtSql import QSqlRelationalDelegate
 from PyQt5.QtWidgets import QComboBox,QLineEdit,QCompleter,QStyledItemDelegate
+from PyQt5.QtGui import QStandardItemModel
+
 from . import secWidget
 from . import chainageWidget
 
@@ -14,6 +16,43 @@ class readOnlyText(QStyledItemDelegate):
         edit.setReadOnly(True)
         return edit
 
+
+
+
+
+#read only delegate ro display label
+class comboboxDelegate(QStyledItemDelegate):
+    
+    
+    def __init__(self,parent,model=None,column=0,items=[]):
+        super(comboboxDelegate,self).__init__(parent)
+        self.model = model
+        self.column = column
+            
+        if not model and column:
+            self.setItems(items)
+        
+    
+    
+    def createEditor(self,parent,option,index):
+        b = QComboBox(parent)
+        b.setModel(self.model)
+        if self.column:
+            b.setModelColumn(self.column)
+        return b
+
+
+    def setItems(self,items):
+        self.model = QStandardItemModel(rows=len(items),columns=1,parent=self)
+        self.column = 0
+
+
+    def setModel(self,model):
+        self.model = model
+
+
+    def setColumn(self,column):
+        self.column = column
 
 
 

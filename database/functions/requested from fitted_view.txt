@@ -1,9 +1,7 @@
-set search_path to hsrr,public;
-
 delete from requested;
 
 insert into requested(sec,reversed,xsp)
-select distinct sec,reversed,xsp from fitted;
+select distinct sec,reversed,xsp from fitted_view where not sec='D';
 
 
 select * from requested

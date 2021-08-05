@@ -1,5 +1,7 @@
 set search_path to hsrr,public;
 
+
+/*
 --splits len into pieces with length of step. last piece can have shorter length. 
 create or replace function split_len(len numeric,step numeric) 
 	returns table (s numeric,e numeric) 
@@ -15,9 +17,15 @@ create or replace function split_len(len numeric,step numeric)
 		END;
 	$$
 	language plpgsql;
+*/
 
-
-
+--splits len into pieces with length of step. last piece can have shorter length. 
+create or replace function split_len(len numeric,step numeric) 
+returns numrange[] as $$
+	select array(select numrange(st,en) from
+	(select generate_series as st,COALESCE(lead(generate_series)over (order by generate_series),len) as en from generate_series(0,len,step))a
+	where st!=en)
+$$ language sql immutable;
 
 
 

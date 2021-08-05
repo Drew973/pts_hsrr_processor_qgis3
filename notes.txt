@@ -30,6 +30,11 @@ easier autofitting-just add passed nodes and try to find section
 
 redo process(function) or replace routes with view.
 
+made fitted_view and resized_view.
+performance?
+
+will simplify
+no need to process.
 
 
 delegate for section?
@@ -45,22 +50,3 @@ want way to:
 	select ch from feature
 	select feature from ch
 
-
-
-
-
-drop table test;
-
-create table test as
-
-with a as(
-select run,ch,pt from passed_nodes 
-union 
-select run,ch,pt from gaps
-	)
-	
-,b as (select *,lead(pt) over (partition by run order by ch) from a)
-
-
-select *,st_makeLine(pt,lead),sr_between_points(pt,lead,15) from b where run='SEW NB CL1'
-order by run,ch

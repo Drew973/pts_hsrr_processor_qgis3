@@ -32,7 +32,6 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
     
         self.connectDialog = database_dialog(self,'hsrrProcessorDb')
 
-
         self.addRowDialog = dictDialog(parent=self)
         w = QDoubleSpinBox(self.addRowDialog)
         w.setSingleStep(0.1)
@@ -44,7 +43,6 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.initChangesMenu()
         self.initTopMenu()
         self.initFw()
-    
     
         self.connectDialog.accepted.connect(self.connectToDatabase)   
         self.connectToDatabase(QSqlDatabase(),warning=False)#QSqlDatabase() will return default connection,
@@ -167,7 +165,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.addRowAct = self.fittingMenu.addAction('Add row...')
         self.addRowAct.triggered.connect(self.showAddDialog)
         
-        autofitAct = self.fittingMenu.addAction('autofit run')
+        autofitAct = self.fittingMenu.addAction('Autofit run')
         autofitAct.triggered.connect(self.autofit)
 
         
@@ -186,7 +184,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
 
 
     def autofit(self):
-        self.changesView.model().autofit(self.getCurrentRun())
+        self.changesView.model().autofit(self.currentRun())
 
 
     def setXsp(self):
@@ -248,10 +246,18 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             if readingsLayer and s_chField and e_ch_Field:
                 
                 fids = []
-                for i in inds:
+                for i in inds:                    
+                    
                     s = i.sibling(i.row(),ch_field).data()
-                    e = i.sibling(i.row()+1,ch_field).data()
-                    fids+=layerFunctions.readingsFids(readingsLayer,self.currentRun(),runField,s,s_chField,e,e_ch_Field)
+                    
+                    if i.row()<i.model().rowCount()-1:#0 indexed
+                        e = i.sibling(i.row()+1,ch_field).data()
+                        fids+=layerFunctions.readingsFids(readingsLayer,self.currentRun(),runField,s,s_chField,e,e_ch_Field)
+                    
+                    else:
+                        fids+=layerFunctions.readingsFids2(layer=readingsLayer,run=self.currentRun(),runField=runField,ch=s,e_chField=e_ch_Field)
+                        
+                        
             
                 readingsLayer.selectByIds(fids)  
         

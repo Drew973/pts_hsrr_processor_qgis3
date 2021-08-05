@@ -1,8 +1,7 @@
 set search_path to hsrr,public;
 
-set search_path to hsrr,public;
-
 drop view if exists autofit;
+
 create view autofit as
 
 with a as
@@ -21,7 +20,7 @@ from a)
 ,c as (select *,lag(srs) over (partition by run order by ch) from b)
 select run,ch,srs,srs::text as srs_text,geom,pt,row_number() over(order by run,ch) from c where lag[1]!=srs[1];
 	
-select * from autofit;		 
+	
 
 
 

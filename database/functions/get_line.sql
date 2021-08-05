@@ -1,7 +1,8 @@
 
 --part of linestring  from start_ch to end_ch. len=noninal length. chainages in terms of nominal length
 
-CREATE OR REPLACE FUNCTION make_line(L geometry('linestring'),start_ch float,end_ch float,len float=null) 
+
+CREATE OR REPLACE FUNCTION make_line(L geometry('linestring'),rg numeric,len numeric=null) 
 RETURNS geometry('linestring') AS $$
 		declare
 			f1 float;
@@ -11,24 +12,8 @@ RETURNS geometry('linestring') AS $$
 					len=st_length(L);
 				end if;
 		
-				f1=start_ch/len;
-				f2=end_ch/len;
-				
-				if f1<0 then
-					f1=0;
-				end if;
-				
-				if f1>1 then
-					f1=1;
-				end if; 
-
-				if f2>1 then
-					f2=1;
-				end if; 
-
-				if f2<0 then
-					f2=0;
-				end if; 
+				f1 = clamp(start_ch/len,0,1);
+				f2 = clamp(end_ch/len,0,1);
 				
 				if f2>f1 then
 					return ST_LineSubstring(L,f1,f2);

@@ -39,7 +39,14 @@ def readingsFids(layer,run,runField,s_ch,s_chField,e_ch,e_chField):
     return [f.id() for f in layer.getFeatures(request)]
     
     
-
+#returns fids in run and with e_chField>ch
+#s_ch float
+#e_ch float
+def readingsFids2(layer,run,runField,ch,e_chField):
+    e = '{runField}={run} and {e_chField}>={ch}'
+    e = e.format(runField=dq(runField),run=sq(run),e_chField=dq(e_chField),ch=ch)
+    request = QgsFeatureRequest().setFilterExpression(e) 
+    return [f.id() for f in layer.getFeatures(request)]
 
 
 ################################        

@@ -31,7 +31,6 @@ class changesModel(QSqlRelationalTableModel):
 
     def setRun(self,run):
         filt = "run='%s'"%(run)
-        print(filt)
         self.setFilter(filt)
         self.select()
 
