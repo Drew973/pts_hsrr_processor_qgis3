@@ -30,7 +30,13 @@ class runInfoModel(QSqlTableModel):
         self.select()
         
         
-        
+    def insert(self,data):
+        pass
+    
+    
+    def delete(self,pks):
+        #dropRuns
+        pass
         
     def uploadReadings(self,uri):
         with dbToCon(self.database()) as con:
@@ -38,7 +44,13 @@ class runInfoModel(QSqlTableModel):
         
         self.select()
              
-             
+        
+    def chainageToPoint(self,chainage):
+         pass
+     
+        
+    def pointToChainage(self,chainage):
+         pass
         
     #def is_uploaded(self,file):
      #   r=self.sql('select run from hsrr.run_info where file=%(file)s;',{'file':file},ret=True)

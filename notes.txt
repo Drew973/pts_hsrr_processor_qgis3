@@ -10,6 +10,13 @@ map matching techniques
 have Dijkstra's algorithm in plpgsql
 
 
+ST_HausdorffDistance(g1,g1):
+measure of how similar geometries are.
+maximum distance from point on g1 to closest point of g2.
+https://postgis.net/docs/ST_HausdorffDistance.html
+
+
+
 upload runs to dialog?
 help to top menu
 

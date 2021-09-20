@@ -22,11 +22,11 @@ set search_path to hsrr,public;
 drop view if exists fitted_view cascade;
 create view fitted_view as
 
-with routes as (select run,sec,reversed,xsp,start_sec_ch,end_sec_ch,numrange(ch,lead(ch) over (partition by run order by ch)) as rg from section_changes where not sec='D')
+with r as (select run,sec,reversed,xsp,start_sec_ch,end_sec_ch,numrange(ch,lead(ch) over (partition by run order by ch)) as rg from section_changes where not sec='D')
 		,a as(																	 
 		select
-		row_number() over (order by routes.run,sec,xsp,reversed,s_ch)
-		,routes.run
+		row_number() over (order by r.run,sec,xsp,reversed,s_ch)
+		,r.run
 		,sec
 		,reversed
 		,xsp
@@ -34,6 +34,6 @@ with routes as (select run,sec,reversed,xsp,start_sec_ch,end_sec_ch,numrange(ch,
 		,rl
 		,meas_sec_ch(sec,st_startPoint(vect))::numeric as s_ch
 		,meas_sec_ch(sec,st_endPoint(vect))::numeric as e_ch
-			
-		from routes inner join readings on rg&&numrange(s_ch,e_ch))
+		,readings.pk as readings_pk	
+		from r inner join readings on r.rg&&numrange(s_ch::numeric,e_ch::numeric) and r.run=readings.run)
 		select *,numrange(least(s_ch,e_ch),greatest(s_ch,e_ch)) as rg from a;

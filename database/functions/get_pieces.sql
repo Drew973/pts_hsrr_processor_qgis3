@@ -50,16 +50,13 @@ alter function get_pieces(sect varchar)  set search_path to hsrr,public;
 create or replace function to_ranges(n numeric,len numeric,bounds text='[)') 
 	returns numrange[]
 	as $$
-	BEGIN
-		return 
-			array(select numrange(s::numeric,e::numeric,bounds)
+	select array(select numrange(s::numeric,e::numeric,bounds)
 				from
 				(select s,coalesce(lead(s) over (order by s),n) as e from 
-					(select generate_series(0.0,n,100) as s) a
+					(select generate_series(0.0,n,len) as s) a
 				) b
 				where s!=e
-			);
-		END;
+				)
 	$$
-	language plpgsql;
+	language sql IMMUTABLE;
 --select get_pieces('0600M6/152')
