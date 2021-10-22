@@ -1,0 +1,36 @@
+set search_path to hsrr,public;
+
+delete from route_nodes;
+
+with a as(
+select run,node_id,s_ch+st_lineLocatePoint(vect,n.geom) as run_chainage,n.geom 
+from network_topo.node n inner join readings on st_dwithin(n.geom,vect,50)
+union
+select run,null,ch as run_ch,pt from gaps
+)
+insert into route_nodes(pk,run,node_id,run_chainage,geom) select row_number() over(order by run,run_chainage),run,node_id,run_chainage,geom from a;
+
+
+delete from routes.nodes;
+insert into routes.nodes(pk) select pk from route_nodes;
+
+
+delete from routes.edges;
+with a as (select edges(pk,run,run_chainage,node_id) from route_nodes)
+	insert into routes.edges(start_node,end_node,cost)
+	select (edges).start_row,(edges).end_row,(edges).cost from a
+
+
+create table hsrr.test as
+select start_node,end_node,cost,geom,run,run_chainage from unnest(routes.cheapest_path((select min(pk) from routes.nodes),(select max(pk) from routes.nodes)))
+inner join routes.edges on unnest=pk
+inner join route_nodes on route_nodes.pk=start_node
+
+
+
+
+
+
+
+get nearby edges instead?
+

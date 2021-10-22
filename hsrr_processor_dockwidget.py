@@ -1,12 +1,10 @@
 #import traceback
 import os
 
-from PyQt5.QtWidgets import QDoubleSpinBox,QMessageBox,QComboBox
+from PyQt5.QtWidgets import QDoubleSpinBox,QMessageBox,QComboBox,QUndoStack,QDockWidget,QMenu,QMenuBar
 from PyQt5.QtSql import QSqlTableModel,QSqlQueryModel,QSqlDatabase
-from PyQt5.QtWidgets import QDockWidget,QMenu,QMenuBar
 from PyQt5.QtGui import QDesktopServices
 
-from qgis.PyQt import uic
 from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
 from qgis.utils import iface
 
@@ -17,11 +15,9 @@ from . import file_dialogs,changesModel,hsrrFieldsWidget,layerFunctions,runInfoM
 
 
 
-uiPath=os.path.join(os.path.dirname(__file__), 'hsrr_processor_dockwidget_base.ui')
-FORM_CLASS, _ = uic.loadUiType(uiPath)
+from . hsrrprocessor_dockwidget_base import Ui_fitterDockWidgetBase
 
-
-class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
+class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
     closingPlugin = pyqtSignal()
 
@@ -31,6 +27,8 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         print('hsrr processor __init__')
     
         self.connectDialog = database_dialog(self,'hsrrProcessorDb')
+
+        self.undoStack = QUndoStack(self)
 
         self.addRowDialog = dictDialog(parent=self)
         w = QDoubleSpinBox(self.addRowDialog)
@@ -45,8 +43,6 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.setXspDialog.addWidget('xsp',w,True)
         self.setXspDialog.accepted.connect(self.setXsp)  
     
-    
-    
         self.initRunInfoMenu()
         self.initRequestedMenu()
         self.initChangesMenu()
@@ -55,6 +51,8 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
     
         self.connectDialog.accepted.connect(self.connectToDatabase)   
         self.connectToDatabase(QSqlDatabase(),warning=False)#QSqlDatabase() will return default connection,
+        self.runBox.setUndoStack(self.undoStack)
+        self.runBox.description = 'change run'
 
 
     def initFw(self):
@@ -86,11 +84,12 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             self.fittingMenu.setEnabled(True)
             self.prepareAct.setEnabled(True)
        
+        
         self.connectRunInfo(db)
         self.connectCoverage(db)
         self.connectChangesModel(db)
         self.connectNetworkModel(db)
-                
+        self.undoStack.clear()
 
 
     def connectNetworkModel(self,db):
@@ -101,7 +100,7 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         
     
     def connectChangesModel(self,db):    
-        m = changesModel.changesModel(db)
+        m = changesModel.changesModel(self,db,self.undoStack)
         
         self.runBox.currentTextChanged.connect(m.setRun)
         m.setRun(self.runBox.currentText())
@@ -139,17 +138,17 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
     
     
     def addRow(self):
+        data = {'run':self.currentRun(),'sec':None,'reversed':None,'xsp':None,'ch':self.addRowDialog['ch'],'note':None,'start_sec_ch':None,'end_sec_ch':None}
+        #self.undoStack.push(changesModel.insertCommand(self.changesView.model(),[data],'add row'))
         
-        if self.changesView.model():
-            self.changesView.model().addRow(run=self.currentRun(),ch=self.addRowDialog['ch'])
-        else:
-            iface.messageBar().pushMessage("Not connected to database.",duration=4)
+        #m = self.changesView.model()
+        #self.undoStack.push(changesModel.methodCommand(m.insert,[data],m.drop,'add row'))
+        self.undoStack.push(self.changesView.model().insertCommand(data,'add row'))
 
-        
+
     def initTopMenu(self):
         self.topMenu = QMenuBar()
-        
-        
+                
         self.mainWidget.layout().setMenuBar(self.topMenu)
         #self.layout().setMenuBar(self.top_menu)
      #   self.layout().addWidget(self.top_menu)
@@ -159,6 +158,11 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         connectAct.triggered.connect(self.connectDialog.show)
         self.prepareAct = databaseMenu.addAction('Setup database for hsrr')
         self.prepareAct.triggered.connect(self.prepareDatabase)     
+        
+        
+        editMenu = self.topMenu.addMenu("Edit")
+        editMenu.addAction(self.undoStack.createUndoAction(self))
+        editMenu.addAction(self.undoStack.createRedoAction(self))
         
         
         self.uploadMenu = self.topMenu.addMenu('Upload')
@@ -175,8 +179,10 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.addRowAct = self.fittingMenu.addAction('Add row...')
         self.addRowAct.triggered.connect(self.showAddDialog)
         
-        autofitAct = self.fittingMenu.addAction('Autofit run')
-        autofitAct.triggered.connect(self.autofit)
+        
+        autofitMenu = self.fittingMenu.addMenu('Autofit')
+        topoAutofitAct = autofitMenu.addAction('Topology based')
+        topoAutofitAct.triggered.connect(self.topoAutofit)
 
         
         helpMenu = self.topMenu.addMenu('Help')
@@ -185,6 +191,12 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         openHelpAct.triggered.connect(self.openHelp)
 
         self.filterLayerButton.clicked.connect(self.filterReadingsLayer)
+      
+        
+      
+    def topoAutofit(self):
+        m = self.changesView.model()
+        self.undoStack.push(changesModel.methodCommand(m.topologyAutofit,None,m.drop,'topology based autofit'))
         
 
     def filterReadingsLayer(self):
@@ -193,13 +205,8 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
             self.fw.filterReadingsLayer(run)
 
 
-    def autofit(self):
-        self.changesView.model().autofit(self.currentRun())
-
-
     def setXsp(self):
-        if self.changesView.model():      
-            self.changesView.model().setXsp(self.setXspDialog['xsp'],self.currentRun())
+        self.undoStack.push(self.changesView.model().setXspCommand(self.setXspDialog['xsp']))
             
             
 
@@ -215,21 +222,31 @@ class hsrrProcessorDockWidget(QDockWidget, FORM_CLASS):
         self.selectOnLayers_act.setToolTip('select these rows on network and/or readings layers.')
         self.selectOnLayers_act.triggered.connect(self.selectOnLayers)
 
-        self.selecFromLayersAct=self.rows_menu.addAction('select from layers')
-        self.selecFromLayersAct.setToolTip('set selected rows from selected features of readings layer.')
+        #selectFromLayersAct = self.rows_menu.addAction('select from layers')
+        #selectFromLayersAct.setToolTip('set selected rows from selected features of readings layer.')
   #      self.select_from_layers_act.triggered.connect(self.select_from_layers)
 
-        self.deleteRowsAct=self.rows_menu.addAction('delete selected rows')
-        self.deleteRowsAct.triggered.connect(lambda:self.changesView.model().dropRows(self.changesView.selectionModel().selectedRows()))
+        self.deleteRowsAct = self.rows_menu.addAction('delete selected rows')
+        self.deleteRowsAct.triggered.connect(self.dropSelectedChangesViewRows)
 
 
+      
+    def dropSelectedChangesViewRows(self):
         
+        pkCol = self.changesView.model().fieldIndex('pk')
+        pks = [r.sibling(r.row(),pkCol).data() for r in self.changesView.selectionModel().selectedRows()]
+        #self.undoStack.push(changesModel.dropCommand(self.changesView.model(),pks))
+        
+       # m = self.changesView.model()
+        #self.undoStack.push(changesModel.methodCommand(m.drop,pks,m.insert,'drop selected rows'))
+        self.undoStack.push(self.changesView.model().dropCommand(pks,'drop selected rows'))
     #select selected rows of routes table on layers
+    
+    
     
     def selectOnLayers(self):
 
         inds = self.getSelectedRows()
-        
         
         if inds:
             

@@ -99,8 +99,9 @@ def uploadReadings(uri,con):
     psycopg2.extras.execute_batch(cur,q,parseReadings(uri,header,run))
     cur.execute('update hsrr.readings set s_ch = (f_line-(select min(f_line) from hsrr.readings as r where r.run=readings.run))*0.1 where run=%(run)s;',{'run':run})#s_ch in km
     cur.execute('update hsrr.readings set e_ch=s_ch+0.1 where run=%(run)s;',{'run':run})#s_ch in km
+    return run
     
-    
+
 if __name__=='__main__':
     uri = r'C:/Users/drew.bennett/Documents/hsrr_test/SEW NB CL1.xls'
     con = psycopg2.connect(host='localhost',dbname='hsrr_test',user='postgres')

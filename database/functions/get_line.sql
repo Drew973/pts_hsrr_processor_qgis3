@@ -1,4 +1,4 @@
-
+--requires vector_functions.sql
 --part of linestring  from start_ch to end_ch. len=noninal length. chainages in terms of nominal length
 
 
@@ -22,9 +22,12 @@ RETURNS geometry('linestring') AS $$
 				end if;
 													   
 		END;			
-$$ LANGUAGE plpgsql;
+$$
+set search_path to hsrr,public
+LANGUAGE plpgsql;
 													   
-
+/*
+old:
 --returns linestring from start_ch to end_ch of section, start_ch and end_ch in terms of meas_len.
 													   					
 CREATE OR REPLACE FUNCTION get_line(sect varchar,start_ch float,end_ch float) 
@@ -37,6 +40,18 @@ RETURNS geometry AS $$
 			--return g;
 		END;			
 $$ LANGUAGE plpgsql;	
+*/
+
+CREATE OR REPLACE FUNCTION get_line(sect varchar,start_ch float,end_ch float) 
+RETURNS geometry AS $$
+		declare 
+			g geometry=geom from hsrr.network where sec=sect;
+			meas_len float = (select meas_len from hsrr.network where sec=sect);
+        BEGIN	
+			return hsrr.lineSubstring(g,start_ch/meas_len,end_ch/meas_len);
+		END;			
+$$ LANGUAGE plpgsql;
+
 
 
 --returns section geometry from closest point to start_pt to closest point of end_pt									   					

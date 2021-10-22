@@ -2,58 +2,186 @@
 qsqltable can work with ranges. Won't give any warnings if user sets to something invalid. can use custom delegate and QValidator to solve
 
 
-have pg_routing in kashyyk as well as local.
-
-
-map matching techniques
-
-have Dijkstra's algorithm in plpgsql
-
-
-ST_HausdorffDistance(g1,g1):
-measure of how similar geometries are.
-maximum distance from point on g1 to closest point of g2.
-https://postgis.net/docs/ST_HausdorffDistance.html
-
-
-
-upload runs to dialog?
-help to top menu
-
-
-get section_changes chainage and point.
-
-
-how to get changes without getting wrong side of dual carriageway?
-add them,find section,merge where section same
-
-
-use section_changes table instead of routes.
-edit this in plugin.
-arguably more intuitive
-easier to check
-easier autofitting-just add passed nodes and try to find section
-
-
-redo process(function) or replace routes with view.
-
-made fitted_view and resized_view.
-performance?
-
-will simplify
-no need to process.
-
-
-delegate for section?
-	section widget.
-
-
-network has dummy section 'D'
-
-
 want way to:
 	select sec from feature
 	select feature from sec
 	select ch from feature
 	select feature from ch
+	
+
+
+fieldsModel
+fieldsWidget
+fieldsMenu
+
+
+autofitting:
+
+	-should be network aware - doesn't go from section to unconnected section
+	-should be able to handle gaps where readings go off network
+	-chainages should be near section length
+	-should minimize distance between section and readings.
+	-chainages should be continuous where no dummy.
+	-section should be connected to last or dummy.
+
+	have pg_routing in kashyyk as well as local.
+
+	map matching techniques
+
+	have Dijkstra's algorithm in plpgsql
+
+
+	only vertices (ends of vect) reliable for readings as 100m spacing
+
+
+	upload runs to dialog?
+	help to top menu
+
+	network has dummy section 'D' to allow gap in route
+
+	passed_nodes
+	run,chainage,id...
+
+	each row of section changes and passed nodes is node of graph.
+		chainage and id.
+
+	edges link to rows with topology linked and chainage difference near geometry length
+
+
+	cost from run geometry and edge geometry. can get from chainages
+
+		cost of gap/dummy should increase with chainage difference.
+		needs to be higher than cost of valid path.
+		constant*chainage difference.
+
+
+	user specifies start and end rows?
+	default to 1st and last row
+
+	dummy edges mean incomplete route can always be found so missing nodes aren't huge problem
+
+
+	cost(run,s_ch,e_ch):
+		returns float
+
+
+	edges(node_id):
+		returns array [end_id,cost]
+		or table
+
+	can now use DA to get route
+
+
+know where any changes should be.
+	from nodes/gaps. 
+	need to link them
+
+	gaps have only dummy
+	nodes have...
+
+
+	for each continuous segment of readings?
+	or each run? need to handle where goes off network anyway.
+
+
+	start at lowest chainage.(start of 1st reading).
+	end at highest chainage (end of last reading)
+	afterwards remove initial and final dummy.
+
+	shortest path problem
+
+
+filtering section_changes:
+	remove where same as last row
+	remove where this improves score.
+
+
+metrics:
+	ST_HausdorffDistance(g1,g1):
+	measure of how similar geometries are.
+	maximum distance from point on g1 to closest point of g2.
+	https://postgis.net/docs/ST_HausdorffDistance.html
+
+
+	mean_vertex_distance(g1,g2)
+	average distance from geom to readings
+	length difference
+
+
+
+overall score:
+distance from network geometry to run_geometry+ penalty for discontinuity + penalty for dummy. dependent on unfitted length.
+
+
+
+topology vs no topology
+
+	less setup
+
+	make_topology function easy enough
+
+
+	need support for forward and reverse
+	topology doesn't have this?
+
+	need way to get route edges
+	
+	possible_changes and possible_edges tables.
+
+	shortest path problem from these.
+	path to link gaps+1st point+last_point?
+	
+	topology designed for this sort of thing
+
+
+	
+
+start node of section not always near run geometry eg roundabouts
+run chainage for section:
+
+could have been visited multiple times.
+
+all changes should be at node except where going off network and where readings bad
+
+
+
+
+joining nodes vs adding every nearby node and filtering
+	adding much simpler
+	doesn't require topology extension
+	handling where readings off network?
+	manually?
+
+
+	add nodes then find section linking them?
+
+
+	finding run_chainage from section?
+
+	can pass same section multiple times.
+
+
+array of run_chainages easy to get. 
+
+
+compare all nearby nodes to correct answer?
+	model to filter.
+
+run,chainage,section,reversed,correct section,correct_reversed,metric1,metric2...
+
+metrics for all there rather than filtered.
+
+numeric(precision,scale)
+scale is number of decimal places. could use to round to x meters
+
+
+end result
+table of run,section,start_sec_ch,end_sec_ch,rl...
+can easily get chainage range for section.
+
+select run,s_ch,e_ch,sec,False as reversed 
+from readings inner join network on st_dwithin(vect,geom,100) and vectors_align(geom,vect) and has_forward
+order by sec, reversed,s_ch
+
+
 

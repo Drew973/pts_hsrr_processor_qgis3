@@ -12,8 +12,8 @@ val numeric
 
 
 
---sum(value*weight)/sum(weigt)
---will give div by 0 error when sum of weights is 0. probably good thing
+--sum(value*weight)/sum(weight)
+--will give div by 0 error when sum of weights is 0. probably a good thing
 
 CREATE OR REPLACE FUNCTION weighted_av(vals weighted_val[]) 
 RETURNS numeric AS $$

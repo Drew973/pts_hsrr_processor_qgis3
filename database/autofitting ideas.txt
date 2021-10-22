@@ -1,0 +1,52 @@
+easy enough to have multiple autofit methods.
+
+
+use topology?
+	network aware. wont miss small sections ability to find sections linking points 
+	but complexity
+
+
+don't have pg_routing on kasheek
+
+but made Djecstra's algorithm in plpgsql.
+
+
+partitioned readings into adjacent lines in readings_geom
+nearest node to start of readings lines
+to nearest node to end of line.
+
+cost as mean_vertex_dist(edge_geom,readings_geom)
+	
+
+
+
+
+
+
+
+inner join network to run_geom on distance
+	geom_to_run_range numrange function of run chainage for geometry
+	run_range_to_geom function
+
+
+have sec,s_ch,e_ch
+insert into section_changes
+
+then filter.
+	remove where makes metric worse?
+
+	
+mean_vertex_dist of lag to lead <lag to current
+
+
+
+consider all nearby sections to readings and filter?
+	might miss small sections
+	vertices within threshold
+
+
+
+give each vect cost score. mean distance to nearest geom of fit.
+high for unfitted.
+
+

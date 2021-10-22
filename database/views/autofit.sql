@@ -25,13 +25,9 @@ select run,ch,srs,srs::text as srs_text,geom,pt,row_number() over(order by run,c
 
 
 /*
-get run chainage of nodes.
-get sec_rev from pt and next pt.
-insert where sec_rev!=lag(sec_rev)
-
-chainage and position of gaps well known. add last.
-
-
+with a as (select pk,ch,srs_between_points(pt,lead(pt) over (order by ch)) from section_changes where run ='SEW NB CL1' and note ='auto')
+,b as (select *,(srs_between_points[1]).sec,(srs_between_points[1]).rev from a)
+update section_changes set sec = b.sec ,reversed = b.rev from b where b.pk=section_changes.pk;
 
 */
 

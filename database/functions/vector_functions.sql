@@ -1,3 +1,6 @@
+set search_path to hsrr,public;
+
+
 CREATE OR REPLACE FUNCTION dot_prod(g1 geometry,g2 geometry)-- needs linestrings not multilinestrings
 RETURNS float AS $$		
     BEGIN
@@ -6,7 +9,7 @@ RETURNS float AS $$
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION cos_angle(g1 geometry,g2 geometry)-- needs linestrings not multilinestrings
+CREATE OR REPLACE FUNCTION hsrr.cos_angle(g1 geometry,g2 geometry)-- needs linestrings not multilinestrings
 RETURNS float AS $$	
 	declare
 		L1 float=st_length(g1);
@@ -16,21 +19,63 @@ RETURNS float AS $$
 	if L1=0 or L2=0 then
 		return null;
 	else
-		return dot_prod(g1,g2)/(st_length(g1)*st_length(g2));
+		return hsrr.dot_prod(g1,g2)/(st_length(g1)*st_length(g2));
 	end if;
     END;			
 $$ LANGUAGE plpgsql;
 
 
+/*
+	returns circular_substring when startFraction<=endFraction.
+	else returns startFraction to 1 and 1 to endFraction
+*/
+create or replace function circular_substring(g geometry,startFraction float,endFraction float)
+returns geometry as $$	
+
+begin
+	if startFraction<=endFraction then 
+		return ST_LineSubstring(g,startFraction,endFraction);
+	end if;
+	
+	return ST_MakeLine(ST_LineSubstring(g,startFraction,1),ST_LineSubstring(g,0,endFraction));
+		
+end;
+$$ LANGUAGE plpgsql;
+
+
+
+CREATE OR REPLACE FUNCTION lineSubstring(g geometry,startFraction float,endFraction float) 
+RETURNS geometry AS $$
+		Declare 
+			s float = hsrr.clamp(startFraction,0::float,1::float);
+			e float = hsrr.clamp(endFraction,0::float,1::float);
+        BEGIN
+			if e<s then
+				return st_reverse(st_lineSubstring(g,e,s));
+			else
+				return st_lineSubstring(g,s,e);
+			end if;
+		END;	
+		
+$$ LANGUAGE plpgsql;
+
+
+
+/*
+returns cosine of angle between v1 and substring of v2
+1 for parallel or opposite direction
+*/
 create or replace function ca(v1 geometry,v2 geometry)
 returns float as $$
 declare
 		f1 float=ST_LineLocatePoint(v2,st_startpoint(v1));
 		f2 float=ST_LineLocatePoint(v2,st_endpoint(v1));
 begin
-	return cos_angle(v1,ST_makeLine(ST_LineInterpolatePoint(v2,f1),ST_LineInterpolatePoint(v2,f2)));
+	return case when st_isClosed(v1) then hsrr.cos_angle(v1,hsrr.circular_substring(v2,f1,f2))
+	else hsrr.cos_angle(v1,st_makeLine(ST_LineInterpolatePoint(v2,f1),ST_LineInterpolatePoint(v2,f2))) end ;
 end;
 $$ LANGUAGE plpgsql;
+
 
 
 --v1=shorter geometry 
@@ -51,4 +96,5 @@ begin
 end;
 $$ LANGUAGE plpgsql;
 
+alter function vectors_align set search_path to hsrr,public;
 

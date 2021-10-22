@@ -2,6 +2,46 @@
 set search_path to hsrr,public;
 
 
+
+/*returns mean distance from vertices of g1 to nearest part of g2
+*/
+CREATE OR REPLACE FUNCTION mean_vertex_dist(g1 geometry,g2 geometry)
+RETURNS float AS $$	
+
+	with a as (select st_distance((st_dumpPoints(g1)).geom,g2) as dist)
+	select sum(dist)/ST_NumPoints(g1) from a;
+	
+$$ LANGUAGE sql immutable;
+
+
+
+/*
+want measure(mean?,maximum?) of distance from readings vertices to nearest point on section.not sure if ST_HausdorffDistance does this.
+make function to do this.
+
+100m spacing means only vertices reliable on highly curved sections
+
+--a is linestring 2+ points. more probably better
+--tol is maximum distance between network and geoemtry
+--min_cos is minimum cosine of angle between geometries. 0=90 degrees,1=0 degrees...
+*/
+
+CREATE OR REPLACE FUNCTION best_sr(a geometry,tol float=50,min_cos float =0)
+RETURNS sec_rev AS $$	
+--Declare	srs sec_rev[]= array_intersect(following_srs(a,tol),previous_srs(b,tol));
+		with b as(
+		select sec,False as reversed,geom from network where st_dwithin(geom,a,tol) and cos_angle(a,geom)>min_cos
+		)
+		select (sec,reversed)::sec_rev from b 
+		order by mean_vertex_dist(a,geom)
+		limit 1;
+		
+$$ LANGUAGE sql immutable;
+
+
+
+
+
 CREATE OR REPLACE FUNCTION following_srs(pt geometry,tol float=20)
 returns sec_rev[] as $$
     BEGIN

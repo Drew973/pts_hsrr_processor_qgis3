@@ -1,4 +1,4 @@
-set search_path to categorizing,public;
+set search_path to hsrr,public;
 
 
 CREATE OR REPLACE FUNCTION clamp(val numeric,minimum numeric,maximum numeric) 

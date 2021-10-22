@@ -11,6 +11,8 @@ pk serial primary key
 ,vect geometry('Linestring',27700)
 ,s_ch numeric--chainage of start in km
 ,e_ch numeric--chainage of end in km
+,rg numrange
 );
 
 create index on readings using gist(vect);
+create index on readings(run);

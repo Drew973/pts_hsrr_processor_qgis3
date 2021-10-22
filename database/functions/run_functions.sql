@@ -22,7 +22,7 @@ alter function run_ch_to_pt(rn text,ch numeric) set search_path to hsrr,public;
 
 CREATE OR REPLACE FUNCTION pt_to_run_ch(rn text,pt geometry,tol float=50)
 RETURNS numeric AS $$	
-		select s_ch+0.1*st_lineLocatePoint(vect,pt)::numeric from readings where run=rn and st_dwithin(vect,pt,tol) order by st_distance(pt,vect) limit 1
+		select s_ch+(e_ch-s_ch)*st_lineLocatePoint(vect,pt)::numeric from readings where run=rn and st_dwithin(vect,pt,tol) order by st_distance(pt,vect) limit 1
 $$ LANGUAGE sql IMMUTABLE;
 
 alter function pt_to_run_ch set search_path to hsrr,public;

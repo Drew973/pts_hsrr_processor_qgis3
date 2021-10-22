@@ -27,7 +27,7 @@
        <item>
         <widget class="QTabWidget" name="tabs">
          <property name="currentIndex">
-          <number>0</number>
+          <number>1</number>
          </property>
          <widget class="QWidget" name="runs">
           <attribute name="title">
@@ -71,7 +71,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QComboBox" name="runBox"/>
+              <widget class="undoableComboBox" name="runBox"/>
              </item>
              <item>
               <widget class="QPushButton" name="filterLayerButton">
@@ -143,6 +143,13 @@
    </layout>
   </widget>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>undoableComboBox</class>
+   <extends>QComboBox</extends>
+   <header>undoableComboBox</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

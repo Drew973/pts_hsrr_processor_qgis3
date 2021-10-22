@@ -8,11 +8,6 @@ $$
 LANGUAGE sql IMMUTABLE;
 
 
-CREATE OR REPLACE FUNCTION is_rbt(sect varchar) RETURNS bool AS
-'SELECT rbt from hsrr.network where sec=sect' LANGUAGE sql IMMUTABLE;
-
-CREATE OR REPLACE FUNCTION near_rbt(pt geometry('point'),dist float=5) RETURNS bool AS
-'SELECT 0<count(sec) from hsrr.network where rbt and st_dwithin(pt,geom,dist)' LANGUAGE sql IMMUTABLE;
 
 CREATE OR REPLACE FUNCTION invert_ch(ch float,sect varchar) RETURNS float AS
 'SELECT meas_len-ch from hsrr.network where sec=sect' LANGUAGE sql IMMUTABLE;

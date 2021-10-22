@@ -97,6 +97,9 @@ RETURNS numeric[][] AS $$
 $$ LANGUAGE plpgsql;
 
 
+CREATE OR REPLACE FUNCTION array_reverse(a anyarray) RETURNS anyarray AS $$
+SELECT array(select unnest from unnest(a) with ordinality order by ordinality desc)
+$$ LANGUAGE sql IMMUTABLE;
 
 
 --make array into ranges of values separated by dist		
