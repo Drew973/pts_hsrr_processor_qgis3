@@ -3,6 +3,10 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QUndoCommand,QTableView,QUndoStack
 import psycopg2
 
+from psycopg2 import sql
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 '''
@@ -41,90 +45,50 @@ class updateCommand(QUndoCommand):
 
 
 
+'''
+command to insert data into model.
+'''
+class insertDictsCommand(QUndoCommand):
 
+    def __init__(self,model,data, description='insert',parent=None):
+        super().__init__(description,parent)
+        self.model = model
+        self.data = data
+
+    def redo(self):
+        self.pks = self.model.insertDicts(self.data)
+
+    def undo(self):
+        self.model.deleteDicts(self.data)
 
 
 
 
 '''
 command to insert data into model.
-
 '''
-class insertCommand(QUndoCommand):
+class deleteDictsCommand(QUndoCommand):
 
-    def __init__(self,model,data, description='insert'):
-        super().__init__(description)
+    def __init__(self,model,pks, description='insert',parent=None):
+        super().__init__(description,parent)
         self.model = model
-        self.data = data
-
+        self.pks = pks
 
     def redo(self):
-        with self.model.con() as con:
-            self.pks = insert(con.cursor(cursor_factory=psycopg2.extras.DictCursor),self.model.tableName(),self.data,self.model.primaryKeyNames())
-            print('redo:',self.pks)
-
-
+        self.data = self.model.deleteDicts(self.pks)
+        
     def undo(self):
-        with self.model.con() as con:
-            delete(con.cursor(cursor_factory=psycopg2.extras.DictCursor),self.model.tableName(),self.pks)
+        self.pks = self.model.insertDicts(self.data)
 
 
-'''
-#use dictcursor to get data suitable to use with insert
-pks: list like of dict like. deletes where key=value and key2=value2...
-'''
-def delete(cur,table,pks,returning=''):
-    if returning:
-        if isinstance(returning,list):
-            returning ='returning '+','.join(returning)
-        else:
-            returning = 'returning ' + returning
-        
-   # '(a=b and c=d) or ()'...
-    condition= ' or '.join([rowCondition(pk) for pk in pks])
-        
-    q = 'delete from {table} where {condition} {returning}'
-    q = q.format(table=table,condition=condition,returning=returning)
-    cur.execute(q)
-    return cur.fetchall()
-
-
-def rowCondition(pk):
-    return '('+' and '.join([str(k)+'='+str(pk[k]) for k in pk])+')'
-
-
-'''
-data:list like of dict like [{}]
-need same keys for every row
-
-returning: list like of columns to return
-returns cur.fetchall()
-should probaly look into sql injection...
-'''
-
-def insert(cur,table,data,returning=''):
-    
-    if returning:
-        returning ='returning '+','.join(returning)
-    
-    columns = list(data[0].keys())
-        
-    a = ','.join(['%('+col+')s' for col in columns ])   # eg  %(run)s,%(sec)s
-    vals = ','.join([cur.mogrify("("+a+")",row).decode() for row in data])
-           
-    q = "insert into {table} ({columns}) VALUES {vals} {returning};"
-    q = q.format(table=table,columns=','.join(columns),vals=vals,returning=returning)
-    cur.execute(q)
-    return cur.fetchall()
-    
     
 
 class undoableTableModel(QSqlTableModel):
     
-    def __init__(self,parent,db,undoStack):
+    def __init__(self,parent,db,undoStack,autoIncrementingColumns=[]):
         super().__init__(parent,db)
         self.undoStack = undoStack
-        self.pkCols = ['pk']
+        self.autoIncrementingColumns = autoIncrementingColumns
 
 
     def con(self):
@@ -162,21 +126,126 @@ class undoableTableModel(QSqlTableModel):
             if self.primaryValues(i) == values:
                 return i
          
-  #inserts list of dict like.
-   # [{}]
-   # returns primary keys.
-    def insert(self,data):
-        self.runUndoCommand(insertCommand(self,data))
-        self.select()
-    
-     #def insert(self,data)
-     
-     #def delete(self,pks)
+
  
     def primaryKeyNames(self):
         return [self.primaryKey().fieldName(i) for i in range(self.primaryKey().count())]
  
     
+ #psycopyg2 sql with schema and tablename
+    def tableIdentifier(self):
+        a = [sql.Identifier(n) for n in self.tableName().split('.')]
+        return sql.SQL('.').join(a)
+    
+    
+     
+    '''
+    should work with any table.
+    insert iterable of subscriptable with key for each non autoincremanting column
+    autoincrementing columns and extra keys ignored.
+    like [{columnName:value}]
+    returns list of psycopg2.extras.DictRow with primary key(s)
+    new rows won't necessarily match filter.
+    
+    con,columnsToInsert,tableName,primaryKeyColumns
+    '''
+    def insertDicts(self,data):
+        logger.info('insertDicts(%s)',str(data))
+        
+        if len(data)==0:
+            #raise ValueError('recieved empty list')
+            return []
+        
+        with self.con() as con:
+            cur = con.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            cols = self.columnsToInsert()
+            #vals = ','.join([valString(cur,d,cols) for d in data])
+          
+            q = sql.SQL("insert into {table} ({fields}) values {values} returning {toReturn}").format(
+            fields = sql.SQL(',').join([sql.Identifier(c) for c in cols]),
+            table = self.tableIdentifier(),
+            values = sql.SQL(',').join([valRow(d,cols) for d in data]),
+            toReturn = sql.SQL(',').join([sql.Identifier(c) for c in self.primaryKeyColumns()])
+            )
+
+            cur.execute(q)
+
+        res = [dict(r) for r in cur.fetchall()]
+      
+        self.select()
+        return res
+
+
+   #data like [{columnName:value}]
+    #delete from table where key=value, returning all columns.
+    
+    #con,data,tableIdentifier,columnNames
+    def deleteDicts(self,data):
+        logger.info('deleteDicts(%s)',str(data))
+        
+        if data!=[]:
+            with self.con() as con:
+                cur = con.cursor(cursor_factory=psycopg2.extras.DictCursor)
+                
+                q = sql.SQL('delete from {table} where {condition} returning {toReturn}').format(
+                table = self.tableIdentifier(),
+                condition = sql.SQL(' or ').join([whereCondition(d) for d in data]),
+                toReturn = sql.SQL(',').join([sql.Identifier(c) for c in self.columnNames()])
+                )
+              #  print(cur.mogrify(q))
+                cur.execute(q)
+                
+            self.select()
+            return [dict(r) for r in cur.fetchall()]
+                #(col_1=val_1 and col_2=val_2) or (col_1=val_3 and col_2=val_4) ...
+        else:
+            return []
+
+
+
+    def primaryKeyColumns(self):
+        return [self.primaryKey().fieldName(i) for i in range(self.primaryKey().count())]
+ 
+    
+ 
+    #return empty record to use for inserting etc.
+    def newRecord(self):
+        r = self.record()
+        for c in self.autoIncrementingColumns:
+             r.setGenerated(c,False)
+        return r
+  
+    
+
+    def columnNames(self):
+        r = self.record()
+        return [r.fieldName(i) for i in range(r.count())]
+
+
+
+    #list of all non autoincremanting columns
+    def columnsToInsert(self):
+        r = self.record()
+        return [r.fieldName(i) for i in range(r.count()) if not r.fieldName(i) in self.autoIncrementingColumns]
+
+
+def valRow(data,columns):
+    return sql.SQL('(')+sql.SQL(',').join([sql.Literal(data[c]) for c in columns])+sql.SQL(')')
+
+
+
+
+#where condition
+#data is dict of column:value
+#(col_1=val_1 and col_2=val_2)
+#every key needs to be column name
+def whereCondition(data):
+    if isinstance(data,dict):
+        return sql.SQL('(')+sql.SQL(' and ').join( [sql.Identifier(k)+sql.SQL('=')+sql.Literal(data[k]) for k in data])+sql.SQL(')')
+    else:
+        raise TypeError('whereCondition() requires dictionary but recieved '+str(type(data)))
+
+
 if __name__=='__console__' or __name__=='__main__':
     data = [{'run':'SEW NB CL1','sec':'D','ch':-110},{'run':'SEW NB CL1','sec':'D','ch':-10}]
     
@@ -197,7 +266,7 @@ if __name__=='__console__' or __name__=='__main__':
     m.setEditStrategy(QSqlTableModel.OnFieldChange) 
     m.setSort(m.fieldIndex('sec'),Qt.AscendingOrder)
     m.select()
-    
+    m.database()
     v.setModel(m)
     
     v.show()

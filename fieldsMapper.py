@@ -1,6 +1,7 @@
 from qgis.gui import QgsFieldComboBox,QgsMapLayerComboBox
-from qgis.PyQt.QtWidgets import QWidget,QFormLayout,QMenu,QWidgetAction
+from qgis.PyQt.QtWidgets import QWidget,QFormLayout,QMenu,QWidgetAction,QHBoxLayout,QLabel
 from collections import OrderedDict
+from qgis.core import QgsProject 
 
 
 def toWidgetAction(widget,parent=None,desc=''):
@@ -13,12 +14,17 @@ def toWidgetAction(widget,parent=None,desc=''):
     
 class layerComboBox(QgsMapLayerComboBox):
     
-    def __init__(self,parent=None,displayName=''):
+    def __init__(self,parent=None,displayName='',default=''):
         super().__init__(parent)
         self.displayName = displayName
         self.fieldBoxes = []
         
-    def addToMenu(self,menu):
+        L = QgsProject.instance().mapLayersByName(default)
+        if L:
+            self.setLayer(L[0])#qgis3
+        
+        
+    def addToMenu(self,menu):#not working yet
         #when widget has child child's fields are used!?
         print('add to menu')
         a = QWidgetAction(menu)
@@ -42,8 +48,7 @@ class FieldComboBox(QgsFieldComboBox):
     #parent : QgsMapLayerComboBox
     #displayName  str
     def __init__(self,parent=None,layerBox=None,default='',displayName=''):
-        super().__init__(None)#bizare things happen when parent set 
-        #super().__init__(parent)#when parent set 
+        super().__init__(parent)#bizare things happen when adding to menu with parent set 
 
         #self.setParent(parent)
         self.default = default
@@ -69,7 +74,6 @@ class FieldComboBox(QgsFieldComboBox):
         w.layout().addWidget(QLabel(self.displayName))
         w.layout().addWidget(self)
         a.setDefaultWidget(w)
-        
         
         menu.addAction(a)
 
@@ -104,7 +108,7 @@ class fieldMapper:
     #add to existing QMenu
     #adds submenu per layer
     
-    def addToMenu(self,menu):
+    def addToMenu(self,menu):#not working yet
        # pass
         #menu.addAction(toWidgetAction(self.fieldBox,self))
         for w in self.widgets.values():
@@ -119,18 +123,18 @@ if __name__ =='__console__':
     w = QWidget()
     m = fieldMapper()
     
-    layerBox = layerComboBox(displayName='network layer')
+    layerBox = layerComboBox(displayName='network layer',default='network')
     m.addLayer('networkLayer',layerBox)
-    m.addField('sec',FieldComboBox(layerBox=m.widget('networkLayer'),displayName='label field'))
-#    layout = QFormLayout()
- #   m.addToFormLayout(layout)
+    m.addField('sec',FieldComboBox(layerBox=m.widget('networkLayer'),displayName='label field',default='sec',parent=layerBox))
+    layout = QFormLayout()
+    m.addToFormLayout(layout)
   #  m.addToMenu(None)
-   # w.setLayout(layout)
+    w.setLayout(layout)
     
     menu = QMenu(w)
     
 
-    m.addToMenu(menu)
+    #m.addToMenu(menu)
     w.setContextMenuPolicy(Qt.CustomContextMenu)
     w.customContextMenuRequested.connect(lambda pt:menu.exec_(w.mapToGlobal(pt)))
     

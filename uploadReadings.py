@@ -28,7 +28,6 @@ gps lat
 '''
 
 
-COLS = []
 
 
 #dict of name:col+'startRow':startRow from readings file
@@ -77,10 +76,10 @@ def uploadReadings(uri,con):
     
     
     cur = con.cursor()
-    cur.execute('insert into hsrr.run_info(run,file) values (hsrr.generate_run_name(%(prefered)s),%(uri)s)',
+    cur.execute('insert into hsrr.run_info(run,file) values (hsrr.generate_run_name(%(prefered)s),%(uri)s returning run)',
                 {'prefered':os.path.splitext(os.path.basename(uri))[0],'uri':uri})
     
-    cur.execute('select run from hsrr.run_info where file=%(uri)s',{'uri':uri})#file is unique
+    #cur.execute('select run from hsrr.run_info where file=%(uri)s',{'uri':uri})#file is unique
     
     run = cur.fetchall()[0][0]
    

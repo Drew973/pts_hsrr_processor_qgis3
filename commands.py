@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QUndoCommand
 import psycopg2
 
-
+from . import readingsModel
 
 
 def dbToCon(db):
@@ -14,49 +14,52 @@ def dbToCon(db):
     ensure nothing in section_changes before this?
     
 '''
-class uploadCommand(QUndoCommand):
+class uploadRunsCommand(QUndoCommand):
 
-    def __init__(self,model,readings,description='upload readings',parent=None):
+    def __init__(self,runInfoModel,uris,description='upload readings',parent=None):
         super().__init__(description,parent)
-        self.model = model
-        self.readings = readings
+        self.runInfoModel = runInfoModel
+        self.readingsModel = readingsModel.readingsModel(runInfoModel.database())
+        self.uris = uris
 
 
     def redo(self):
-        self.run = self.model.uploadReadings(self.readings)
+        self.runs = {u:self.runInfoModel.addRun(u) for u in self.uris}#uri:run
+        for k in self.runs:
+            self.readingsModel.uploadXls(k,self.runs[k])
+
 
 
     def undo(self):
-        if self.model.secChangesCount(self.run)==0:
-            self.model.dropRuns([self.run])
-        else:
-            pass
-
+        self.readingsModel.dropRuns(self.runs.values())
+        self.runInfoModel.dropRuns(self.runs.values())
 
 '''
     data in run_info,readings,section_changes
-    delete from run_info cascades
+    delete from run_info no longer cascades
     reupload from file vs store readings?
     file location might change so better to store. memory usage?
     
 '''
-class dropRunCommand(QUndoCommand):
+class dropRunsCommand(QUndoCommand):
 
-    def __init__(self,run,runInfoModel,sectionChangesModel,description='upload readings',parent=None):
+    def __init__(self,runs,runInfoModel,sectionChangesModel,description='drop runs',parent=None):
         super().__init__(description,parent)
-        self.run = run
+        self.runs = runs
         self.runInfoModel = runInfoModel
         self.sectionChangesModel = sectionChangesModel
+        self.readingsModel = readingsModel.readingsModel(runInfoModel.database())
         
 
     def redo(self):
-        self.sectionChangesModel.dropRowsCommand(parent=self,pks=self.sectionChangesModel.pks(self.run))
         
-        with dbToCon(self.sectionChangesModel.database()) as con:
-            con.cursor().execute("delete from hsrr.readings where run = %(run)s returning run,f_line,t,raw_ch,rl,st_asText(vect),s_ch,e_ch",{'run':self.run})
+        self.readingsData = self.readingsModel.dropRuns(self.runs)
+        self.changesData = self.sectionChangesModel.dropRuns(self.runs)
+        self.runInfoData = self.runInfoModel.dropRuns(self.runs)
+
         
-        super().redo()
         
-        
-    #def undo(self):
-        
+    def undo(self):
+        self.readingsModel.uploadDicts(self.readingsData)
+        self.sectionChangesModel.insertDicts(self.changesData)
+        self.runInfoModel.insertDicts(self.runInfoData)

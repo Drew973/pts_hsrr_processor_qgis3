@@ -11,7 +11,18 @@ from qgis.utils import iface
 from .betterTableModel import betterTableModel
 from .dict_dialog import dictDialog
 from .database_dialog.database_dialog import database_dialog
-from . import file_dialogs,changesModel,hsrrFieldsWidget,layerFunctions,runInfoModel,delegates,databaseFunctions
+from . import (file_dialogs,changesModel,hsrrFieldsWidget,layerFunctions,runInfoModel,delegates,databaseFunctions
+,undoableTableModel,commands)
+
+
+
+import logging
+
+logging.basicConfig(filename=r'C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\hsrrprocessor\hsrr_processor.log',
+                    level=logging.INFO,filemode='w')
+
+logger = logging.getLogger(__name__)
+
 
 
 
@@ -123,7 +134,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
 
     def connectRunInfo(self,db):
-        self.runsModel = runInfoModel.runInfoModel(parent=self,db=db)       
+        self.runsModel = runInfoModel.runInfoModel(parent=self,db=db,undoStack=self.undoStack)
         self.runsView.setModel(self.runsModel)
         self.runBox.setModel(self.runsModel)
         self.runBox.setCurrentIndex(0)
@@ -191,12 +202,11 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         openHelpAct.triggered.connect(self.openHelp)
 
         self.filterLayerButton.clicked.connect(self.filterReadingsLayer)
-      
         
       
     def topoAutofit(self):
         m = self.changesView.model()
-        self.undoStack.push(changesModel.methodCommand(m.topologyAutofit,None,m.drop,'topology based autofit'))
+        self.undoStack.push(changesModel.methodCommand(m.topologyAutofit,None,m.deleteDicts,'topology based autofit'))
         
 
     def filterReadingsLayer(self):
@@ -234,12 +244,12 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     def dropSelectedChangesViewRows(self):
         
         pkCol = self.changesView.model().fieldIndex('pk')
-        pks = [r.sibling(r.row(),pkCol).data() for r in self.changesView.selectionModel().selectedRows()]
+        pks = [{'pk':r.sibling(r.row(),pkCol).data()} for r in self.changesView.selectionModel().selectedRows()]
         #self.undoStack.push(changesModel.dropCommand(self.changesView.model(),pks))
         
        # m = self.changesView.model()
         #self.undoStack.push(changesModel.methodCommand(m.drop,pks,m.insert,'drop selected rows'))
-        self.undoStack.push(self.changesView.model().dropCommand(pks,'drop selected rows'))
+        self.undoStack.push(undoableTableModel.deleteDictsCommand(self.changesView.model(),pks,'drop selected rows'))
     #select selected rows of routes table on layers
     
     
@@ -286,7 +296,6 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
                     else:
                         fids+=layerFunctions.readingsFids2(layer=readingsLayer,run=self.currentRun(),runField=runField,ch=s,e_chField=e_ch_Field)
                         
-                        
             
                 readingsLayer.selectByIds(fids)  
         
@@ -329,31 +338,29 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         QDesktopServices.openUrl(QUrl(help_path))
         
 
-
-    def uploadReadings(self,uri):
-        con = self.connectDialog.get_con()
-        if con:
-            
-            try:
-                self.runsModel.uploadReadings(uri)
-                
-                self.upload_log.appendPlainText('sucessfully uploaded %s\n'%(uri))
+    #1 set of readings
+   # def uploadReadings(self,uri):
+      #  try:
+     #       self.undoStack.push(runInfoModel.uploadReadingsCommand(self.runsView.model(),uri))
+     #       self.upload_log.appendPlainText('sucessfully uploaded %s\n'%(uri))
                                                 
-            except Exception as e:
-                self.upload_log.appendPlainText('error uploading %s:\n%s\n'%(uri,str(e)))#traceback.format_exc()
+     #   except Exception as e:
+      #      self.upload_log.appendPlainText('error uploading %s:\n%s\n'%(uri,str(e)))#traceback.format_exc()
                 
 
     def uploadRunsDialog(self):
         files = file_dialogs.load_files_dialog('.xls','upload spreadsheets')
         if files:
-            for f in files:
-                self.uploadReadings(f)
+            self.undoStack.push(commands.uploadRunsCommand(self.runsView.model(),files))
+           # for f in files:
+               # self.uploadReadings(f)
+            
+            
             
     def uploadFolderDialog(self):
-        folder=file_dialogs.load_directory_dialog('.xls','upload all .xls in directory')
+        folder = file_dialogs.load_directory_dialog('.xls','upload all .xls in directory')
         if folder:
-            for f in file_dialogs.filter_files(folder,'.xls'):
-                self.uploadReadings(f)
+            self.undoStack.push(commands.uploadRunsCommand(self.runsView.model(),file_dialogs.filter_files(folder,'.xls')))
                 
             
         
@@ -386,6 +393,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
         self.requested_view.resizeColumnsToContents()
 
+
         
     def prepareDatabase(self):
         msgBox = QMessageBox();
@@ -402,16 +410,24 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
                 iface.messageBar().pushMessage('fitting tool: prepared database')
 
 
+
 #for requested view
     def initRunInfoMenu(self):
         self.runInfoMenu = QMenu(self)
-        a = self.runInfoMenu.addAction('drop run')
-        a.triggered.connect(lambda:self.runsModel.dropRuns([str(i.data()) for i in self.runsView.selectionModel().selectedRows(0)]))# selectedRows(0) returns column 0 (sec)
+        dropRunAct = self.runInfoMenu.addAction('drop run')
+        dropRunAct.triggered.connect(self.dropSelectedRuns)# selectedRows(0) returns column 0 (sec)
 
         self.runsView.setContextMenuPolicy(Qt.CustomContextMenu);
         self.runsView.customContextMenuRequested.connect(lambda pt:self.runInfoMenu.exec_(self.mapToGlobal(pt)))
         
-
+        
+        
+    def dropSelectedRuns(self):
+        runs = [str(i.data()) for i in self.runsView.selectionModel().selectedRows(0)]
+        self.undoStack.push(commands.dropRunsCommand(runs=runs,runInfoModel=self.runsView.model(),sectionChangesModel=self.changesView.model(),description='drop runs'))
+        
+        
+        
 
 #for requested view
     def initRequestedMenu(self):

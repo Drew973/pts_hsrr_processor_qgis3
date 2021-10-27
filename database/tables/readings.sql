@@ -3,7 +3,7 @@ set search_path to hsrr,public;
 create table if not exists readings
 (
 pk serial primary key
-,run text references run_info(run) on delete cascade on update cascade
+,run text references run_info(run) on update cascade
 ,f_line int--which line of file data came from
 ,t timestamptz
 ,raw_ch numeric--machine chainage from file. start or end?
