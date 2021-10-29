@@ -1,22 +1,22 @@
 #import traceback
 import os
 
-from PyQt5.QtWidgets import QDoubleSpinBox,QMessageBox,QComboBox,QUndoStack,QDockWidget,QMenu,QMenuBar
+from PyQt5.QtWidgets import QDoubleSpinBox,QMessageBox,QComboBox,QUndoStack,QDockWidget,QMenu,QMenuBar,QFileDialog
 from PyQt5.QtSql import QSqlTableModel,QSqlQueryModel,QSqlDatabase
 from PyQt5.QtGui import QDesktopServices
 
 from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
 from qgis.utils import iface
 
-from .betterTableModel import betterTableModel
 from .dict_dialog import dictDialog
 from .database_dialog.database_dialog import database_dialog
-from . import (file_dialogs,changesModel,hsrrFieldsWidget,layerFunctions,runInfoModel,delegates,databaseFunctions
-,undoableTableModel,commands)
+from . import hsrrFieldsWidget,layerFunctions,delegates,databaseFunctions,commands
 
-
+from .models import undoableTableModel,changesModel,runInfoModel,betterTableModel
+from . hsrrprocessor_dockwidget_base import Ui_fitterDockWidgetBase
 
 import logging
+
 
 logging.basicConfig(filename=r'C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\hsrrprocessor\hsrr_processor.log',
                     level=logging.INFO,filemode='w')
@@ -25,8 +25,14 @@ logger = logging.getLogger(__name__)
 
 
 
+def filterFiles(folder,ext):
+    res=[]
+    for root, dirs, files in os.walk(folder):
+        res+=[os.path.normpath(os.path.join(root,f)) for f in files if os.path.splitext(f)[-1]==ext]
+    return res
 
-from . hsrrprocessor_dockwidget_base import Ui_fitterDockWidgetBase
+
+
 
 class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
@@ -50,7 +56,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     
         self.setXspDialog = dictDialog(parent=self)
         w = QComboBox(self.setXspDialog)
-        w.addItems(['CL1','CL2','CR1','CR2','RE','LE'])
+        w.addItems(['CL1','CL2','CR1','CR2','LE','RE'])
         self.setXspDialog.addWidget('xsp',w,True)
         self.setXspDialog.accepted.connect(self.setXsp)  
     
@@ -111,7 +117,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
     
     def connectChangesModel(self,db):    
-        m = changesModel.changesModel(self,db,self.undoStack)
+        m = changesModel.changesModel(parent=self,db=db,undoStack=self.undoStack)
         
         self.runBox.currentTextChanged.connect(m.setRun)
         m.setRun(self.runBox.currentText())
@@ -126,11 +132,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
         self.changesView.setItemDelegateForColumn(m.fieldIndex('ch'),
             delegates.chainageWidgetDelegate(parent=self,fw=self.fw))     
-
-    
-   # def connectSectionsModel(self,db):
-    #    self.sectionsModel = QSqlQueryModel(db)
-        
+ 
         
 
     def connectRunInfo(self,db):
@@ -149,12 +151,8 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     
     
     def addRow(self):
-        data = {'run':self.currentRun(),'sec':None,'reversed':None,'xsp':None,'ch':self.addRowDialog['ch'],'note':None,'start_sec_ch':None,'end_sec_ch':None}
-        #self.undoStack.push(changesModel.insertCommand(self.changesView.model(),[data],'add row'))
-        
-        #m = self.changesView.model()
-        #self.undoStack.push(changesModel.methodCommand(m.insert,[data],m.drop,'add row'))
-        self.undoStack.push(self.changesView.model().insertCommand(data,'add row'))
+        data = [{'run':self.currentRun(),'sec':None,'reversed':None,'xsp':None,'ch':self.addRowDialog['ch'],'note':None,'start_sec_ch':None,'end_sec_ch':None}]
+        self.undoStack.push(undoableTableModel.insertDictsCommand(self.changesView.model(),data,'add row'))
 
 
     def initTopMenu(self):
@@ -338,29 +336,24 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         QDesktopServices.openUrl(QUrl(help_path))
         
 
-    #1 set of readings
-   # def uploadReadings(self,uri):
-      #  try:
-     #       self.undoStack.push(runInfoModel.uploadReadingsCommand(self.runsView.model(),uri))
-     #       self.upload_log.appendPlainText('sucessfully uploaded %s\n'%(uri))
-                                                
-     #   except Exception as e:
-      #      self.upload_log.appendPlainText('error uploading %s:\n%s\n'%(uri,str(e)))#traceback.format_exc()
-                
 
     def uploadRunsDialog(self):
-        files = file_dialogs.load_files_dialog('.xls','upload spreadsheets')
+        files = QFileDialog.getOpenFileNames(caption='Upload readings', filter='*'+'.xls'+';;*')[0]#pyqt5
+        files = [os.path.normpath(f) for f in files]
+        logger.info('files'+str(files))
         if files:
             self.undoStack.push(commands.uploadRunsCommand(self.runsView.model(),files))
-           # for f in files:
-               # self.uploadReadings(f)
-            
+                      
             
             
     def uploadFolderDialog(self):
-        folder = file_dialogs.load_directory_dialog('.xls','upload all .xls in directory')
+        folder = QFileDialog.getExistingDirectory(caption='upload all .xls in directory')#pyqt5
+        files = filterFiles(folder,'.xls')
+        logger.info('files'+str(files))
+     #   folder = file_dialogs.load_directory_dialog('.xls','upload all .xls in directory')
+     
         if folder:
-            self.undoStack.push(commands.uploadRunsCommand(self.runsView.model(),file_dialogs.filter_files(folder,'.xls')))
+            self.undoStack.push(commands.uploadRunsCommand(self.runsView.model(),files))
                 
             
         
@@ -372,7 +365,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
     def connectCoverage(self,db):
        # self.requestedModel = QSqlTableModel(db=self.dd.db)
-        self.requestedModel = betterTableModel(db=db)
+        self.requestedModel = betterTableModel.betterTableModel(db=db)
         self.requestedModel.setEditStrategy(QSqlTableModel.OnFieldChange)        
         self.requestedModel.setTable('hsrr.requested')
         self.requestedModel.setEditable(False)#set all cols uneditable

@@ -40,7 +40,7 @@ RETURNS void AS $$
 	select row_number() over (order by sec),sec,reversed,start_node,end_node,cost,edge_id,geom,start_chainage,end_chainage from
 	(
 	select sec,reversed,a.pk as start_node,b.pk as end_node,
-	(select avg(st_distance(vect,geom)) from readings where e_ch>=a.ch and s_ch<=b.ch) as cost
+	(select avg(st_distance(vect,geom)) from readings where run = rn and e_ch>=a.ch and s_ch<=b.ch) as cost
 	,edge_id,geom,a.ch as start_chainage,b.ch as end_chainage
 	from possible_changes a inner join network_edges on network_edges.start_node=a.node_id
 	inner join possible_changes b on network_edges.end_node=b.node_id and a.ch<=b.ch and a.pk!=b.pk and b.ch-a.ch<length_tol+st_length(geom)/1000

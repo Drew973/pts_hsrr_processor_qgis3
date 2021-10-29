@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QUndoCommand
 import psycopg2
 
-from . import readingsModel
+from .models import readingsModel,parseReadings
 
 
 def dbToCon(db):
@@ -24,15 +24,17 @@ class uploadRunsCommand(QUndoCommand):
 
 
     def redo(self):
-        self.runs = {u:self.runInfoModel.addRun(u) for u in self.uris}#uri:run
+        
+        self.runs = {u:self.runInfoModel.addRun(u) for u in self.uris if parseReadings.isReadings(u)}#uri:run
         for k in self.runs:
-            self.readingsModel.uploadXls(k,self.runs[k])
+            if k:
+                self.readingsModel.uploadXls(k,self.runs[k])
 
 
 
     def undo(self):
-        self.readingsModel.dropRuns(self.runs.values())
-        self.runInfoModel.dropRuns(self.runs.values())
+        self.readingsModel.dropRuns(list(self.runs.values()))
+        self.runInfoModel.dropRuns(list(self.runs.values()))
 
 '''
     data in run_info,readings,section_changes
@@ -60,6 +62,7 @@ class dropRunsCommand(QUndoCommand):
         
         
     def undo(self):
+        self.runInfoModel.insertDicts(self.runInfoData)#needs to be 1st-foreign key
         self.readingsModel.uploadDicts(self.readingsData)
         self.sectionChangesModel.insertDicts(self.changesData)
-        self.runInfoModel.insertDicts(self.runInfoData)
+        

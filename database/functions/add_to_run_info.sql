@@ -24,17 +24,21 @@ $$ LANGUAGE plpgsql;
 alter function generate_run_name set search_path to hsrr;
 
 /*
-
+tries to add to run_info.
+returns new run or null
 --path functions will be os specific.
 --easier to just use os.path in python.
+*/
 
-
-CREATE OR REPLACE FUNCTION add_to_run_info(filename text)
+CREATE OR REPLACE FUNCTION add_to_run_info(filename text,prefered text)
 RETURNS text AS $$	
-    Declare run text = generate_run_name(path_basename(filename));
+    Declare rn text = generate_run_name(prefered);
 	BEGIN
-		insert into run_info(run,file) values (run,filename);
-		return run;
+		if (select count(run) from hsrr.run_info where file=filename)=0 then
+			insert into run_info(run,file) values (rn,filename);
+			return rn;
+		end if;
+		return null;
 	END;			
 $$ LANGUAGE plpgsql;
 
@@ -43,5 +47,5 @@ $$ LANGUAGE plpgsql;
 alter function add_to_run_info set search_path to hsrr;
 
 
-*/
+
 

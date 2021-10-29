@@ -27,7 +27,7 @@
        <item>
         <widget class="QTabWidget" name="tabs">
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="runs">
           <attribute name="title">
@@ -44,13 +44,6 @@
              </property>
              <property name="selectionBehavior">
               <enum>QAbstractItemView::SelectRows</enum>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPlainTextEdit" name="upload_log">
-             <property name="toolTip">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;upload log&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
             </widget>
            </item>
