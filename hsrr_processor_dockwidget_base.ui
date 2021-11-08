@@ -27,7 +27,7 @@
        <item>
         <widget class="QTabWidget" name="tabs">
          <property name="currentIndex">
-          <number>0</number>
+          <number>1</number>
          </property>
          <widget class="QWidget" name="runs">
           <attribute name="title">
@@ -79,7 +79,7 @@
             </layout>
            </item>
            <item>
-            <widget class="QTableView" name="changesView">
+            <widget class="changesView" name="changesView">
              <property name="alternatingRowColors">
               <bool>true</bool>
              </property>
@@ -141,6 +141,11 @@
    <class>undoableComboBox</class>
    <extends>QComboBox</extends>
    <header>undoableComboBox</header>
+  </customwidget>
+  <customwidget>
+   <class>changesView</class>
+   <extends>QTableView</extends>
+   <header>widgets.changesView</header>
   </customwidget>
  </customwidgets>
  <resources/>

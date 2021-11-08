@@ -2,7 +2,7 @@
 import os
 
 from PyQt5.QtWidgets import QDoubleSpinBox,QMessageBox,QComboBox,QUndoStack,QDockWidget,QMenu,QMenuBar,QFileDialog
-from PyQt5.QtSql import QSqlTableModel,QSqlQueryModel,QSqlDatabase
+from PyQt5.QtSql import QSqlTableModel,QSqlDatabase
 from PyQt5.QtGui import QDesktopServices
 
 from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
@@ -10,7 +10,7 @@ from qgis.utils import iface
 
 from .dict_dialog import dictDialog
 from .database_dialog.database_dialog import database_dialog
-from . import hsrrFieldsWidget,layerFunctions,delegates,databaseFunctions,commands
+from . import hsrrFieldsWidget,databaseFunctions,commands
 
 from .models import undoableTableModel,changesModel,runInfoModel,betterTableModel
 from . hsrrprocessor_dockwidget_base import Ui_fitterDockWidgetBase
@@ -62,7 +62,6 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     
         self.initRunInfoMenu()
         self.initRequestedMenu()
-        self.initChangesMenu()
         self.initTopMenu()
         self.initFw()
     
@@ -71,10 +70,15 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.runBox.setUndoStack(self.undoStack)
         self.runBox.description = 'change run'
 
+        self.changesView.undoStack = self.undoStack
+         
+        self.runBox.currentTextChanged.connect(lambda run:self.changesView.model().setRun(run))
+
 
     def initFw(self):
         self.fw = hsrrFieldsWidget.hsrrFieldsWidget(self)
         self.tabs.insertTab(0,self.fw,'Fields')
+        self.changesView.fw = self.fw
     
     
     
@@ -102,37 +106,19 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
             self.prepareAct.setEnabled(True)
        
         
+        self.changesView.setDb(db)#want runbox.currentTextChanged to trigger setRun.
         self.connectRunInfo(db)
         self.connectCoverage(db)
-        self.connectChangesModel(db)
-        self.connectNetworkModel(db)
+        
+      #  self.connectNetworkModel(db)
         self.undoStack.clear()
 
 
-    def connectNetworkModel(self,db):
-        self.networkModel = QSqlQueryModel(self)
-        self.networkModel.setQuery('select sec from hsrr.network',db)
+ #   def connectNetworkModel(self,db):
+ #       self.networkModel = QSqlQueryModel(self)
+   #     self.networkModel.setQuery('select sec from hsrr.network',db)
        # self.changesView.set delegates.secWidgetDelegate
 
-        
-    
-    def connectChangesModel(self,db):    
-        m = changesModel.changesModel(parent=self,db=db,undoStack=self.undoStack)
-        
-        self.runBox.currentTextChanged.connect(m.setRun)
-        m.setRun(self.runBox.currentText())
-        
-        self.changesView.setModel(m)
-        [self.changesView.setColumnHidden(col, True) for col in m.hiddenColIndexes]#hide run column
-        self.changesView.resizeColumnsToContents()
-        #self.changesView.setItemDelegateForColumn(self.changesModel.fieldIndex('sec'),delegates.lineEditRelationalDelegate())
-        secCol = m.fieldIndex('sec')
-        self.changesView.setItemDelegateForColumn(secCol,
-            delegates.secWidgetDelegate(parent=self,fw=self.fw,model=m,column=secCol))          
-
-        self.changesView.setItemDelegateForColumn(m.fieldIndex('ch'),
-            delegates.chainageWidgetDelegate(parent=self,fw=self.fw))     
- 
         
 
     def connectRunInfo(self,db):
@@ -151,7 +137,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     
     
     def addRow(self):
-        data = [{'run':self.currentRun(),'sec':None,'reversed':None,'xsp':None,'ch':self.addRowDialog['ch'],'note':None,'start_sec_ch':None,'end_sec_ch':None}]
+        data = [{'run':self.currentRun(),'sec':'','reversed':None,'xsp':None,'ch':self.addRowDialog['ch'],'note':None,'start_sec_ch':None,'end_sec_ch':None}]
         self.undoStack.push(undoableTableModel.insertDictsCommand(self.changesView.model(),data,'add row'))
 
 
@@ -216,100 +202,6 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     def setXsp(self):
         self.undoStack.push(self.changesView.model().setXspCommand(self.setXspDialog['xsp']))
             
-            
-
-    def initChangesMenu(self):
-        self.rows_menu = QMenu(self)
-        self.rows_menu.setToolTipsVisible(True)
-        
-        self.changesView.setContextMenuPolicy(Qt.CustomContextMenu);
-        self.changesView.customContextMenuRequested.connect(lambda pt:self.rows_menu.exec_(self.mapToGlobal(pt)))
-          
-
-        self.selectOnLayers_act=self.rows_menu.addAction('select on layers')
-        self.selectOnLayers_act.setToolTip('select these rows on network and/or readings layers.')
-        self.selectOnLayers_act.triggered.connect(self.selectOnLayers)
-
-        #selectFromLayersAct = self.rows_menu.addAction('select from layers')
-        #selectFromLayersAct.setToolTip('set selected rows from selected features of readings layer.')
-  #      self.select_from_layers_act.triggered.connect(self.select_from_layers)
-
-        self.deleteRowsAct = self.rows_menu.addAction('delete selected rows')
-        self.deleteRowsAct.triggered.connect(self.dropSelectedChangesViewRows)
-
-
-      
-    def dropSelectedChangesViewRows(self):
-        
-        pkCol = self.changesView.model().fieldIndex('pk')
-        pks = [{'pk':r.sibling(r.row(),pkCol).data()} for r in self.changesView.selectionModel().selectedRows()]
-        #self.undoStack.push(changesModel.dropCommand(self.changesView.model(),pks))
-        
-       # m = self.changesView.model()
-        #self.undoStack.push(changesModel.methodCommand(m.drop,pks,m.insert,'drop selected rows'))
-        self.undoStack.push(undoableTableModel.deleteDictsCommand(self.changesView.model(),pks,'drop selected rows'))
-    #select selected rows of routes table on layers
-    
-    
-    
-    def selectOnLayers(self):
-
-        inds = self.getSelectedRows()
-        
-        if inds:
-            
-            #select on network
-            secCol = self.changesView.model().fieldIndex('sec')
-            sects = [i.sibling(i.row(),secCol).data() for i in inds] 
-            sects = [s for s in sects if not s=='D']
-            
-            networkLayer = self.fw['network']
-            secField = self.fw['label']
-            
-            if networkLayer and secField and sects:
-                layerFunctions.selectByVals(sects, networkLayer, secField)
-                
-                layerFunctions.zoomToSelected(networkLayer)
-       
-            
-           #select on readings        
-            readingsLayer = self.fw['readings']
-            s_chField = self.fw['s_ch']
-            e_ch_Field = self.fw['e_ch']
-            runField = self.fw['run']
-            
-            ch_field = self.changesView.model().fieldIndex('ch')
-            
-            if readingsLayer and s_chField and e_ch_Field:
-                
-                fids = []
-                for i in inds:                    
-                    
-                    s = i.sibling(i.row(),ch_field).data()
-                    
-                    if i.row()<i.model().rowCount()-1:#0 indexed
-                        e = i.sibling(i.row()+1,ch_field).data()
-                        fids+=layerFunctions.readingsFids(readingsLayer,self.currentRun(),runField,s,s_chField,e,e_ch_Field)
-                    
-                    else:
-                        fids+=layerFunctions.readingsFids2(layer=readingsLayer,run=self.currentRun(),runField=runField,ch=s,e_chField=e_ch_Field)
-                        
-            
-                readingsLayer.selectByIds(fids)  
-        
-                #only want to zoom to these if no section selected
-                if not sects:
-                    layerFunctions.zoomToSelected(readingsLayer)
-  
-    
-    
-    #first index of selected rows
-    def getSelectedRows(self):
-        inds = self.changesView.selectionModel().selectedRows()
-        if inds:
-            return inds
-        iface.messageBar().pushMessage('hsrr tool:no rows selected')    
-    
     
     
     def currentRun(self,message=True):      
@@ -419,8 +311,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         runs = [str(i.data()) for i in self.runsView.selectionModel().selectedRows(0)]
         self.undoStack.push(commands.dropRunsCommand(runs=runs,runInfoModel=self.runsView.model(),sectionChangesModel=self.changesView.model(),description='drop runs'))
         
-        
-        
+    
 
 #for requested view
     def initRequestedMenu(self):

@@ -39,9 +39,6 @@ class Ui_fitterDockWidgetBase(object):
         self.runsView.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.runsView.setObjectName("runsView")
         self.verticalLayout.addWidget(self.runsView)
-        self.upload_log = QtWidgets.QPlainTextEdit(self.runs)
-        self.upload_log.setObjectName("upload_log")
-        self.verticalLayout.addWidget(self.upload_log)
         self.tabs.addTab(self.runs, "")
         self.tab_5 = QtWidgets.QWidget()
         self.tab_5.setObjectName("tab_5")
@@ -59,7 +56,7 @@ class Ui_fitterDockWidgetBase(object):
         self.filterLayerButton.setObjectName("filterLayerButton")
         self.horizontalLayout_3.addWidget(self.filterLayerButton)
         self.verticalLayout_4.addLayout(self.horizontalLayout_3)
-        self.changesView = QtWidgets.QTableView(self.tab_5)
+        self.changesView = changesView(self.tab_5)
         self.changesView.setAlternatingRowColors(True)
         self.changesView.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.changesView.setObjectName("changesView")
@@ -97,7 +94,6 @@ class Ui_fitterDockWidgetBase(object):
         _translate = QtCore.QCoreApplication.translate
         fitterDockWidgetBase.setWindowTitle(_translate("fitterDockWidgetBase", "Not Connected - HSRR Processor"))
         self.runsView.setToolTip(_translate("fitterDockWidgetBase", "<html><head/><body><p>run_info table.</p></body></html>"))
-        self.upload_log.setToolTip(_translate("fitterDockWidgetBase", "<html><head/><body><p>upload log</p></body></html>"))
         self.tabs.setTabText(self.tabs.indexOf(self.runs), _translate("fitterDockWidgetBase", "Runs"))
         self.label.setText(_translate("fitterDockWidgetBase", "run"))
         self.filterLayerButton.setToolTip(_translate("fitterDockWidgetBase", "<html><head/><body><p>Filter readings layer to this run.</p></body></html>"))
@@ -106,4 +102,5 @@ class Ui_fitterDockWidgetBase(object):
         self.show_missing_button.setText(_translate("fitterDockWidgetBase", "Show missing"))
         self.show_all_button.setText(_translate("fitterDockWidgetBase", "Show all"))
         self.tabs.setTabText(self.tabs.indexOf(self.tab_4), _translate("fitterDockWidgetBase", "Coverage"))
-from . undoableComboBox import undoableComboBox
+from .undoableComboBox import undoableComboBox
+from .widgets.changesView import changesView

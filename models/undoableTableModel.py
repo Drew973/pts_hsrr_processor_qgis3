@@ -1,4 +1,4 @@
-from PyQt5.QtSql import QSqlTableModel
+from PyQt5.QtSql import QSqlTableModel,QSqlRelationalTableModel 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QUndoCommand,QTableView,QUndoStack
 import psycopg2
@@ -83,7 +83,7 @@ class deleteDictsCommand(QUndoCommand):
 
     
 
-class undoableTableModel(QSqlTableModel):
+class undoableTableModel(QSqlRelationalTableModel):
     
     def __init__(self,parent,db,undoStack,autoIncrementingColumns=[]):
         super().__init__(parent,db)

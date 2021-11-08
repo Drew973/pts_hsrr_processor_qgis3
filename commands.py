@@ -66,3 +66,8 @@ class dropRunsCommand(QUndoCommand):
         self.readingsModel.uploadDicts(self.readingsData)
         self.sectionChangesModel.insertDicts(self.changesData)
         
+        
+        
+        
+ 
+        

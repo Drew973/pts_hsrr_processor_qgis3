@@ -79,7 +79,9 @@ class changesModel(undoableTableModel.undoableTableModel):
 
 
     def setRun(self,run):
+        logger.info('setRun(%s)'%(run))
         filt = "run='%s'"%(run)
+        logger.info(filt)
         self.setFilter(filt)
         self.select()
         self.run = run
@@ -93,18 +95,6 @@ class changesModel(undoableTableModel.undoableTableModel):
             cur.execute('delete from hsrr.section_changes where run = any(%(runs)s) returning run,sec,reversed,xsp,ch,note,start_sec_ch,end_sec_ch',{'runs':runs})
             return [dict(r) for r in cur.fetchall()]
     
-       
-       
-    #insert dict does this and returns pks
-    #works with output of dropRuns
-   # def insertData(self,data):
-      #  with self.con() as con:
-       #     cur = con.cursor()
-        #    
-        #    q = '''insert into hsrr.section_changes (run,sec,reversed,xsp,ch,note,start_sec_ch,end_sec_ch)
-        #    values(%(run)s,%(sec)s,%(reversed)s,%(xsp)s,%(ch)s,%(note)s,%(start_sec_ch)s,%(end_sec_ch)s)'''
-            
-         #   psycopg2.extras.execute_batch(cur,q,data)
             
     
     

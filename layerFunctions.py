@@ -22,7 +22,7 @@ def selectByVals(vals,layer,field):
         
 #zoom to selected features of layer. Works with any crs
 def zoomToSelected(layer):
-    a=iface.activeLayer()
+    a = iface.activeLayer()
     iface.setActiveLayer(layer)
     iface.actionZoomToSelected().trigger()
     iface.setActiveLayer(a)
