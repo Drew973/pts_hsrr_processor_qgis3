@@ -3,9 +3,9 @@ from PyQt5.QtSql import QSqlRelation
 from PyQt5.QtCore import Qt
 
 
-from hsrrprocessor.models import changesModel,undoableTableModel
-import delegates
-from hsrrprocessor import layerFunctions
+from hsrr_processor.models import changesModel,undoableTableModel
+from hsrr_processor import delegates
+from hsrr_processor import layerFunctions
 
 #from ..models import changesModel,undoableTableModel
 #from .. import delegates

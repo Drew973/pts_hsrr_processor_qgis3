@@ -18,7 +18,7 @@ from . hsrrprocessor_dockwidget_base import Ui_fitterDockWidgetBase
 import logging
 
 
-logging.basicConfig(filename=r'C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\hsrrprocessor\hsrr_processor.log',
+logging.basicConfig(filename = os.path.join(os.path.dirname(__file__),'hsrr_processor.log'),
                     level=logging.INFO,filemode='w')
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,6 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     def __init__(self, parent=None):
         super(hsrrProcessorDockWidget, self).__init__(parent)
         self.setupUi(self)
-        print('hsrr processor __init__')
     
         self.connectDialog = database_dialog(self,'hsrrProcessorDb')
 
