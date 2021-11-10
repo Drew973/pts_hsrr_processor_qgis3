@@ -1,8 +1,9 @@
 from PyQt5.QtWidgets import QUndoCommand
 import psycopg2
 
-from .models import readingsModel,parseReadings
+#from hsrr_processor.models import readingsModel,parseReadings
 
+from hsrr_processor.models import readingsModel,parseReadings
 
 def dbToCon(db):
     return psycopg2.connect(host=db.hostName(),dbname=db.databaseName(),user=db.userName(),password=db.password())

@@ -25,10 +25,11 @@ from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, Qt
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QAction
 # Initialize Qt resources from file resources.py
-from .resources import *
+#from resources import *
+#import hsrr_processor.resources
 
 # Import the code for the DockWidget
-from .hsrr_processor_dockwidget import hsrrProcessorDockWidget
+from hsrr_processor.hsrr_processor_dockwidget import hsrrProcessorDockWidget
 import os.path
 
 

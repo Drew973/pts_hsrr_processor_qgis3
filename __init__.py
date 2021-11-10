@@ -36,5 +36,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :type iface: QgsInterface
     """
     #
-    from .hsrr_processor import hsrrProcessor
+    from .hsrrProcessor import hsrrProcessor
     return hsrrProcessor(iface)

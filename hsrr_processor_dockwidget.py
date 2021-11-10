@@ -10,7 +10,8 @@ from qgis.utils import iface
 
 from .dict_dialog import dictDialog
 from .database_dialog.database_dialog import database_dialog
-from . import hsrrFieldsWidget,databaseFunctions,commands
+from hsrr_processor import hsrrFieldsWidget,databaseFunctions,commands,runTests
+
 
 from .models import undoableTableModel,changesModel,runInfoModel,betterTableModel
 from . hsrrprocessor_dockwidget_base import Ui_fitterDockWidgetBase
@@ -73,6 +74,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
          
         self.runBox.currentTextChanged.connect(lambda run:self.changesView.model().setRun(run))
 
+        runTests.test(self)#run unit tests
 
     def initFw(self):
         self.fw = hsrrFieldsWidget.hsrrFieldsWidget(self)
@@ -317,7 +319,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.requested_menu = QMenu()
         zoomAct = self.requested_menu.addAction('zoom to section')
       #  act.triggered.connect(lambda:self.select_on_network([i.data() for i in self.requested_view.selectionModel().selectedRows()]))
-        self.requested_view.setContextMenuPolicy(Qt.CustomContextMenu);
+        self.requested_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.requested_view.customContextMenuRequested.connect(lambda pt:self.requested_menu.exec_(self.mapToGlobal(pt)))
 
 

@@ -1,24 +1,15 @@
 import os
-import sys
-
-pluginFolder = r'C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\hsrrprocessor'
-sys.path.append(pluginFolder)
-
-#import unittest
 from PyQt5.QtSql import QSqlDatabase
 from PyQt5.QtWidgets import QUndoStack
 
 
+
+
 #from context import runInfoModel,commands
-from hsrrprocessor import commands
-from models import runInfoModel,changesModel
+import hsrr_processor.commands as commands
+from hsrr_processor.models import runInfoModel,changesModel
 #works in qgis python console.
 
-
-import logging
-
-logging.basicConfig(filename=r'C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\hsrrprocessor\tests\test.log',
-                    level=logging.DEBUG,filemode='w')
 
 
 def getDb():
@@ -28,7 +19,7 @@ def getDb():
     db.setHostName('localhost')
     db.setDatabaseName('test')
     db.setUserName('postgres')
-    print('db opened:',db.open())
+    assert db.open(),'could not open database'
     return db
 
 
@@ -58,3 +49,45 @@ def testDrop():
 if __name__ == '__main__' or __name__ =='__console__':
     testUpload()
     testDrop()
+
+
+
+import unittest
+
+
+class test_runInfo(unittest.TestCase):
+    
+    def setUp(self):
+        db = getDb()
+        u = QUndoStack()
+        self.model = runInfoModel.runInfoModel(db=db,undoStack=u)
+        self.cm = changesModel.changesModel(db=db,undoStack=u)
+
+
+
+    def tearDown(self):
+        self.model = None
+        self.cm = None
+        
+    def test_uploadCommand(self):
+        uri = os.path.join(os.path.dirname(__file__),'example_data','SEW NB CL1.xls')
+        c = commands.uploadRunsCommand(runInfoModel=self.model, uris=[uri])
+        c.redo()
+        c.undo()
+
+
+    def test_dropCommand(self):
+        runs = ['SEW NB CL1']
+        c = commands.dropRunsCommand(runInfoModel=self.model,runs=runs,sectionChangesModel=self.cm)
+        c.redo()
+        c.undo()
+
+
+
+
+
+
+
+
+
+
