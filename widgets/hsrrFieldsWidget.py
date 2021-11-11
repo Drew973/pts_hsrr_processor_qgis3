@@ -38,9 +38,12 @@ class hsrrFieldsWidget(fieldsWidget.fieldsWidget):
         layer = self['network']
         secField = self['label']
         
-        if layer:
+        if layer is None or secField is None:
+            return False
+        else:
             layerFunctions.selectByVals(sects, layer, secField)
-    
+            layerFunctions.zoomToSelected(layer)
+            return True
     
     def selectedSection(self):
         if self['label'] and self.getSelectedFeature('network'):

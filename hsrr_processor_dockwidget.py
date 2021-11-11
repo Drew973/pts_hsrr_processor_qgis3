@@ -8,13 +8,15 @@ from PyQt5.QtGui import QDesktopServices
 from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
 from qgis.utils import iface
 
-from .dict_dialog import dictDialog
-from .database_dialog.database_dialog import database_dialog
-from hsrr_processor import hsrrFieldsWidget,databaseFunctions,commands,runTests
+from hsrr_processor.widgets import dict_dialog,hsrrFieldsWidget
 
+from hsrr_processor.database_dialog.database_dialog import database_dialog
+from hsrr_processor import databaseFunctions,commands
 
-from .models import undoableTableModel,changesModel,runInfoModel,betterTableModel
-from . hsrrprocessor_dockwidget_base import Ui_fitterDockWidgetBase
+from hsrr_processor.tests import runTests
+
+from hsrr_processor.models import undoableTableModel,changesModel,runInfoModel,betterTableModel
+from hsrr_processor.hsrrprocessor_dockwidget_base import Ui_fitterDockWidgetBase
 
 import logging
 
@@ -39,7 +41,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
     closingPlugin = pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None,test=True):
         super(hsrrProcessorDockWidget, self).__init__(parent)
         self.setupUi(self)
     
@@ -47,14 +49,14 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
         self.undoStack = QUndoStack(self)
 
-        self.addRowDialog = dictDialog(parent=self)
+        self.addRowDialog = dict_dialog.dictDialog(parent=self)
         w = QDoubleSpinBox(self.addRowDialog)
         w.setSingleStep(0.1)
         self.addRowDialog.addWidget('ch',w,True)
         self.addRowDialog.accepted.connect(self.addRow)
     
     
-        self.setXspDialog = dictDialog(parent=self)
+        self.setXspDialog = dict_dialog.dictDialog(parent=self)
         w = QComboBox(self.setXspDialog)
         w.addItems(['CL1','CL2','CR1','CR2','LE','RE'])
         self.setXspDialog.addWidget('xsp',w,True)
@@ -74,7 +76,8 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
          
         self.runBox.currentTextChanged.connect(lambda run:self.changesView.model().setRun(run))
 
-        runTests.test(self)#run unit tests
+        if test:
+            runTests.test(self)#run unit tests
 
     def initFw(self):
         self.fw = hsrrFieldsWidget.hsrrFieldsWidget(self)
@@ -189,6 +192,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.filterLayerButton.clicked.connect(self.filterReadingsLayer)
         
       
+        
     def topoAutofit(self):
         m = self.changesView.model()
         self.undoStack.push(changesModel.methodCommand(m.topologyAutofit,None,m.deleteDicts,'topology based autofit'))

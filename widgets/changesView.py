@@ -5,7 +5,7 @@ from PyQt5.QtCore import Qt
 
 from hsrr_processor.models import changesModel,undoableTableModel
 from hsrr_processor import delegates
-from hsrr_processor import layerFunctions
+from hsrr_processor.widgets import layerFunctions
 
 #from ..models import changesModel,undoableTableModel
 #from .. import delegates
@@ -84,13 +84,7 @@ class changesView(QTableView):
             sects = [i.sibling(i.row(),secCol).data() for i in inds]
             sects = [s for s in sects if not s=='']
             
-            networkLayer = self.fw['network']
-            secField = self.fw['label']
-            
-            if networkLayer and secField:
-                layerFunctions.selectByVals(sects, networkLayer, secField)
-                layerFunctions.zoomToSelected(networkLayer)
-       
+            self.fw.selectOnNetwork(sects)
             
            #select on readings        
             readingsLayer = self.fw['readings']

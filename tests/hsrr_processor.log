@@ -1,8 +1,0 @@
-INFO:hsrr_processor.models.readingsModel:dropRuns(['SEW NB CL1'])
-INFO:hsrr_processor.models.readingsModel:dropRuns(['SEW NB CL1'])
-INFO:hsrr_processor.models.readingsModel:dropRuns(['SEW NB CL1'])
-INFO:hsrr_processor.models.runInfoModel:addRun(C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\hsrr_processor\tests\example_data\SEW NB CL1.xls)
-INFO:hsrr_processor.models.readingsModel:dropRuns(['SEW NB CL1'])
-INFO:hsrr_processor.models.runInfoModel:addRun(C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\hsrr_processor\tests\example_data\SEW NB CL1.xls)
-INFO:hsrr_processor.models.readingsModel:dropRuns(['SEW NB CL1'])
-INFO:hsrr_processor.models.runInfoModel:addRun(C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\hsrr_processor\tests\example_data\SEW NB CL1.xls)
