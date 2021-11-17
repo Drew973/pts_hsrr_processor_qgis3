@@ -19,7 +19,7 @@ RETURNS table (pk int) AS $$
 		 lag(sec) over(order by start_chainage,sec,rev) as last_sec
 		 ,lag(rev) over(order by start_chainage,sec,rev) as last_rev
 
-		from unnest(routes.cheapest_path(array( select pk from hsrr.possible_changes where node_id <0 order by ch,node_id)))
+		from unnest(routes.cheapest_path(array( select pk from hsrr.possible_changes where node_id <0 order by ch,node_id)))-- -2 for gap after -1 for gap before
 			inner join hsrr.possible_edges 
 			on pk=unnest
 	)a 

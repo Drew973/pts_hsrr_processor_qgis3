@@ -1,10 +1,9 @@
 from PyQt5.QtSql import QSqlDatabase
 from qgis.gui import QgsFieldComboBox,QgsMapLayerComboBox
 from qgis.PyQt.QtWidgets import QWidget,QFormLayout,QHBoxLayout,QPushButton
-from qgis.utils import iface
 from qgis.core import QgsProject
 from hsrr_processor.widgets import layerFunctions
-from qgis.core import QgsArrowSymbolLayer
+
 
 
 
@@ -131,8 +130,7 @@ class hsrrFieldsWidget(fieldsWidget):
         if isinstance(self.dockWidget.database(),QSqlDatabase):
             if self.dockWidget.database().isOpen():
                 layer = layerFunctions.importTable(self.dockWidget.database(),table='network',schema='hsrr',geometryColumn='geom')
-                QgsProject.instance().addMapLayer(layer)
-                toArrows(layer,{'color':'blue','is_curved':'False'})
+                layerFunctions.toArrows(layer,{'color':'blue','is_curved':'False'})
                 self.widget('network').setLayer(layer)
             
        
@@ -141,8 +139,7 @@ class hsrrFieldsWidget(fieldsWidget):
         if isinstance(self.dockWidget.database(),QSqlDatabase):
             if self.dockWidget.database().isOpen():
                 layer = layerFunctions.importTable(self.dockWidget.database(),table='readings',schema='hsrr',geometryColumn='vect')
-                QgsProject.instance().addMapLayer(layer)
-                toArrows(layer,{'color':'green','is_curved':'False'})
+                layerFunctions.toArrows(layer,{'color':'orange','is_curved':'False'})
                 self.widget('readings').setLayer(layer)
 
 
@@ -150,7 +147,6 @@ class hsrrFieldsWidget(fieldsWidget):
         if isinstance(self.dockWidget.database(),QSqlDatabase):
             if self.dockWidget.database().isOpen():
                 layer = layerFunctions.importTable(self.dockWidget.database(),table='section_changes',schema='hsrr',geometryColumn='pt')
-                QgsProject.instance().addMapLayer(layer)
                 self.widget('changes').setLayer(layer)
 
 
@@ -205,17 +201,6 @@ class hsrrFieldsWidget(fieldsWidget):
         
         return 0
             
-            
-'''
-change layer symbology to arrows
-https://nocache.qgis.org/api/3.4/qgsarrowsymbollayer_8cpp_source.html
-'''
-def toArrows(layer,properties={'color':'blue','is_curved':'False'}):
-    sl = QgsArrowSymbolLayer.create(properties)
-    layer.renderer().symbol().changeSymbolLayer(0,sl)#symbol has 1+ symbol layers
-    layer.triggerRepaint()
-    iface.layerTreeView().refreshLayerSymbology(layer.id())#refresh symbology
-
 
 
 if __name__ =='__console__':

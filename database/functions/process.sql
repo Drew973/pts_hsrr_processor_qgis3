@@ -13,7 +13,7 @@ RETURNS void AS $$
 			
 			with a as (select run,ch
 			,(select min(ch) from section_changes where run=sc.run and ch>sc.ch) as next_ch
-			from section_changes as sc where sec=sect and reversed=rev and xsp=lane--100ms;
+			from section_changes as sc where sec=sect and reversed=rev and xsp=lane--100ms; -- IS NOT DISTINCT FROM
 			)
 			, b as (select vect,rl,readings.pk
 				,meas_sec_ch(sect,st_startPoint(vect))::numeric as s_ch

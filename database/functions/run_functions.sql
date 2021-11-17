@@ -5,7 +5,7 @@ set search_path to hsrr,public;
 --returns null where run doesn't exist of no reading at this chainage.
 CREATE OR REPLACE FUNCTION run_ch_to_pt(rn text,ch numeric)
 RETURNS geometry('point') AS $$	
-		select ST_LineInterpolatePoint(vect,(ch-s_ch)/(e_ch-s_ch)) from readings where run=rn and s_ch<=ch and ch<e_ch;
+		select ST_LineInterpolatePoint(vect,(ch-s_ch)/(e_ch-s_ch)) from readings where run=rn and s_ch<=ch and ch<=e_ch limit 1;
 $$ LANGUAGE sql immutable;
 
 

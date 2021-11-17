@@ -8,7 +8,7 @@ from PyQt5.QtGui import QDesktopServices
 from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
 from qgis.utils import iface
 
-from hsrr_processor.widgets import hsrrFieldsWidget
+from hsrr_processor.widgets import hsrrFieldsWidget,layerFunctions
 
 from hsrr_processor.database_dialog.database_dialog import database_dialog
 from hsrr_processor import databaseFunctions,commands
@@ -166,7 +166,8 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         loadChangesAct = self.layersMenu.addAction('Load section_changes into QGIS')
         loadChangesAct.triggered.connect(self.fw.importChanges)
 
-
+        loadResizedAct = self.layersMenu.addAction('Load resized into QGIS')
+        loadResizedAct.triggered.connect(self.loadResized)
 
         #help
         helpMenu = self.topMenu.addMenu('Help')
@@ -182,6 +183,10 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         if run:
             self.fw.filterReadingsLayer(run)
     
+    def loadResized(self):
+        layer = layerFunctions.importTable(self.database(),table='resized',schema='hsrr',geometryColumn='geom')
+        layerFunctions.toArrows(layer,{'color':'green','is_curved':'False'})
+
     
     def currentRun(self,message=True):      
         if self.runBox.currentText():

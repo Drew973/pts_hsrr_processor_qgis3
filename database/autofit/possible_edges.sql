@@ -25,6 +25,8 @@ create table if not exists possible_edges
 	,geom geometry
 );
 
+
+
 /*
 length_tol:geometry length within length_tol of chainage difference. in km.
 cost of dummy=dummy_cost_per_length*chainage difference+min_dummy_cost
@@ -32,7 +34,7 @@ cost of dummy=dummy_cost_per_length*chainage difference+min_dummy_cost
 edges link where connected by toplogy edge.
 dummys link where chanage difference < max_dummy_lengh
 */
-CREATE OR REPLACE FUNCTION calculate_possible_edges(rn text,length_tol float=0.5,max_dummy_length float=3,dummy_cost_per_length float=2000,min_dummy_cost float=1000)
+CREATE OR REPLACE FUNCTION calculate_possible_edges(rn text,length_tol float=0.5,max_dummy_length float=3,dummy_cost_per_length float=2000,min_dummy_cost float=500)
 RETURNS void AS $$
 	delete from hsrr.possible_edges;
 	
@@ -54,7 +56,5 @@ RETURNS void AS $$
 $$ LANGUAGE sql
 SET search_path = hsrr,public
 ;
-
-
 
 

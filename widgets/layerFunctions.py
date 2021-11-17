@@ -1,6 +1,6 @@
 from qgis.utils import iface
-from qgis.core import QgsFeatureRequest,QgsDataSourceUri,QgsVectorLayer,QgsProject
-
+from qgis.core import QgsDataSourceUri,QgsVectorLayer,QgsProject
+from qgis.core import QgsArrowSymbolLayer
 
 import logging
 logger = logging.getLogger(__name__)
@@ -33,6 +33,17 @@ def zoomToSelected(layer):
     iface.setActiveLayer(a)
       
 
+
+            
+'''
+change layer symbology to arrows
+https://nocache.qgis.org/api/3.4/qgsarrowsymbollayer_8cpp_source.html
+'''
+def toArrows(layer,properties={'color':'blue','is_curved':'False'}):
+    sl = QgsArrowSymbolLayer.create(properties)
+    layer.renderer().symbol().changeSymbolLayer(0,sl)#symbol has 1+ symbol layers
+    layer.triggerRepaint()
+    iface.layerTreeView().refreshLayerSymbology(layer.id())#refresh symbology
 
     
     
