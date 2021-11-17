@@ -1,5 +1,6 @@
 set search_path to hsrr,routes,topology,public;
 
+drop view if exists network_edges cascade;
 
 create view network_edges as 
 select sec,False as reversed,start_node,end_node,edge_data.geom,edge_id 

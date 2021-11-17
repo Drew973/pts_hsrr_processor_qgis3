@@ -23,7 +23,7 @@ RETURNS table (pk int) AS $$
 			inner join hsrr.possible_edges 
 			on pk=unnest
 	)a 
-		where not (sec=last_sec and rev=last_rev) --avoid repeated rows
+		where sec in (select sec from hsrr.network) and not (sec=last_sec and rev=last_rev) --avoid repeated rows
 		
 	returning pk;
 

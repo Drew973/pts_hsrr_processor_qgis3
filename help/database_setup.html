@@ -19,9 +19,11 @@
 <div class="main_div">
 	<body>
 
-        <p>The "prepare new database" button creates the tables,views and functions required for this plugin.</p>
-		<p>Values will need to be inserted into the <a href="network.html">network table</a> and  <a href="requested.html">requested table</a>  before <a href="fitting.html">fitting</a> and <a href="processing.html">processing</a>.</p>
- 
+        <p>The "prepare new database" button creates the required schemas,tables,views and functions</p>
+		<p>These will be in the hsrr,routes and topology schemas</p>
+		<p>The postgis and topology extensions are required.</p>
+		<p>Values will need to be inserted into the <a href="network.html">network table</a> before <a href="fitting.html">fitting</a>.</p>
+		<p>Topology based autofit requires topology tables.The hsrr.recalc_topology(tol float =5) sets this up. It should be called after changes to hsrr.network.<p>
 
 	</body>
 

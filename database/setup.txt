@@ -1,6 +1,4 @@
-create extension if not exists postgis;
-CREATE SCHEMA if not exists hsrr;
-set search_path to hsrr,public;
+setup_schema.sql;
 types/types.sql;
 tables/run_info.sql;
 tables/network.sql;
@@ -26,3 +24,7 @@ views/run_geom.sql;
 views/possible_sections.sql;
 functions/autofit.sql;
 triggers/section_changes_triggers.sql;
+functions/recalc_topology.sql;
+autofit/possible_changes.sql;
+autofit/possible_edges.sql;
+autofit/topology_based.sql;

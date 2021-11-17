@@ -1,21 +1,21 @@
 #import traceback
 import os
 
-from PyQt5.QtWidgets import QDoubleSpinBox,QMessageBox,QComboBox,QUndoStack,QDockWidget,QMenu,QMenuBar,QFileDialog
+from PyQt5.QtWidgets import QMessageBox,QUndoStack,QDockWidget,QMenu,QMenuBar,QFileDialog
 from PyQt5.QtSql import QSqlTableModel,QSqlDatabase
 from PyQt5.QtGui import QDesktopServices
 
 from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
 from qgis.utils import iface
 
-from hsrr_processor.widgets import dict_dialog,hsrrFieldsWidget
+from hsrr_processor.widgets import hsrrFieldsWidget
 
 from hsrr_processor.database_dialog.database_dialog import database_dialog
 from hsrr_processor import databaseFunctions,commands
 
 from hsrr_processor.tests import runTests
 
-from hsrr_processor.models import undoableTableModel,changesModel,runInfoModel,betterTableModel
+from hsrr_processor.models import runInfoModel,betterTableModel
 from hsrr_processor.hsrrprocessor_dockwidget_base import Ui_fitterDockWidgetBase
 
 import logging
@@ -47,25 +47,13 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     
         self.connectDialog = database_dialog(self,'hsrrProcessorDb')
 
-        self.undoStack = QUndoStack(self)
+        self.undoStack = QUndoStack(self)  
+        self.initFw()
 
-        self.addRowDialog = dict_dialog.dictDialog(parent=self)
-        w = QDoubleSpinBox(self.addRowDialog)
-        w.setSingleStep(0.1)
-        self.addRowDialog.addWidget('ch',w,True)
-        self.addRowDialog.accepted.connect(self.addRow)
-    
-    
-        self.setXspDialog = dict_dialog.dictDialog(parent=self)
-        w = QComboBox(self.setXspDialog)
-        w.addItems(['CL1','CL2','CR1','CR2','LE','RE'])
-        self.setXspDialog.addWidget('xsp',w,True)
-        self.setXspDialog.accepted.connect(self.setXsp)  
-    
+
         self.initRunInfoMenu()
         self.initRequestedMenu()
         self.initTopMenu()
-        self.initFw()
     
         self.connectDialog.accepted.connect(self.connectToDatabase)   
         self.connectToDatabase(QSqlDatabase(),warning=False)#QSqlDatabase() will return default connection,
@@ -74,17 +62,18 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
         self.changesView.undoStack = self.undoStack
          
-        self.runBox.currentTextChanged.connect(lambda run:self.changesView.model().setRun(run))
+        self.runBox.currentTextChanged.connect(self.changesView.setRun)
 
         if test:
             runTests.test(self)#run unit tests
+
 
     def initFw(self):
         self.fw = hsrrFieldsWidget.hsrrFieldsWidget(self)
         self.tabs.insertTab(0,self.fw,'Fields')
         self.changesView.fw = self.fw
     
-    
+        
     
     def connectToDatabase(self,db=None,warning=True):
         if not db:
@@ -95,20 +84,15 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
             
         if not db.isOpen():
             self.setWindowTitle('Not connected - HSRR Processer')
-            self.fittingMenu.setEnabled(False)
-            self.uploadMenu.setEnabled(False)       
-            self.prepareAct.setEnabled(False)
+            self.enableConnecionDependent(False)
             
             if warning:
                 iface.messageBar().pushMessage('could not connect to database',duration=6)            
             
         else:
             self.setWindowTitle('Connected to %s - HSRR Processer'%(db.databaseName()))
-           
-            self.uploadMenu.setEnabled(True)            
-            self.fittingMenu.setEnabled(True)
-            self.prepareAct.setEnabled(True)
-       
+            self.enableConnecionDependent(True)
+
         
         self.changesView.setDb(db)#want runbox.currentTextChanged to trigger setRun.
         self.connectRunInfo(db)
@@ -118,12 +102,17 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.undoStack.clear()
 
 
- #   def connectNetworkModel(self,db):
- #       self.networkModel = QSqlQueryModel(self)
-   #     self.networkModel.setQuery('select sec from hsrr.network',db)
-       # self.changesView.set delegates.secWidgetDelegate
+    def enableConnecionDependent(self,enabled):
+        self.uploadMenu.setEnabled(enabled)
+        self.editMenu.setEnabled(enabled)
+        self.prepareAct.setEnabled(enabled)
+        self.fw.setButtonsEnabled(enabled)
+        self.layersMenu.setEnabled(enabled)
 
-        
+
+    def database(self):
+        return self.runsModel.database()
+
 
     def connectRunInfo(self,db):
         self.runsModel = runInfoModel.runInfoModel(parent=self,db=db,undoStack=self.undoStack)
@@ -133,17 +122,6 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
        # self.run_info_view.setItemDelegateForColumn(self.run_info_model.fieldIndex('file'),delegates.readOnlyText())#makes column uneditable
         
     
-        
-    def showAddDialog(self):
-        if self.currentRun():
-            self.addRowDialog.widget('ch').setValue(self.fw.lowestSelectedReading(self.currentRun()))
-            self.addRowDialog.show()
-    
-    
-    def addRow(self):
-        data = [{'run':self.currentRun(),'sec':'','reversed':None,'xsp':None,'ch':self.addRowDialog['ch'],'note':None,'start_sec_ch':None,'end_sec_ch':None}]
-        self.undoStack.push(undoableTableModel.insertDictsCommand(self.changesView.model(),data,'add row'))
-
 
     def initTopMenu(self):
         self.topMenu = QMenuBar()
@@ -152,18 +130,20 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         #self.layout().setMenuBar(self.top_menu)
      #   self.layout().addWidget(self.top_menu)
        
+     
+       #database
         databaseMenu = self.topMenu.addMenu('Database')
         connectAct = databaseMenu.addAction('Connect to database')
         connectAct.triggered.connect(self.connectDialog.show)
         self.prepareAct = databaseMenu.addAction('Setup database for hsrr')
         self.prepareAct.triggered.connect(self.prepareDatabase)     
         
+        #edit
+        self.editMenu = self.topMenu.addMenu("Edit")
+        self.editMenu.addAction(self.undoStack.createUndoAction(self))
+        self.editMenu.addAction(self.undoStack.createRedoAction(self))
         
-        editMenu = self.topMenu.addMenu("Edit")
-        editMenu.addAction(self.undoStack.createUndoAction(self))
-        editMenu.addAction(self.undoStack.createRedoAction(self))
-        
-        
+        #upload
         self.uploadMenu = self.topMenu.addMenu('Upload')
         uploadReadingsAct =  self.uploadMenu.addAction('Upload readings spreadsheet...')
         uploadReadingsAct.triggered.connect(self.uploadRunsDialog)
@@ -171,19 +151,24 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         uploadReadingsFolderAct.triggered.connect(self.uploadFolderDialog)        
         
         
-        self.fittingMenu = self.topMenu.addMenu('Fitting')
-        setXspAct = self.fittingMenu.addAction('Set xsp of run...')
-        setXspAct.triggered.connect(self.setXspDialog.show)
-        
-        self.addRowAct = self.fittingMenu.addAction('Add row...')
-        self.addRowAct.triggered.connect(self.showAddDialog)
-        
-        
-        autofitMenu = self.fittingMenu.addMenu('Autofit')
-        topoAutofitAct = autofitMenu.addAction('Topology based')
-        topoAutofitAct.triggered.connect(self.topoAutofit)
+        #fitting
+        self.topMenu.addMenu(self.changesView.fittingMenu)
 
         
+        #import layers
+        self.layersMenu = self.topMenu.addMenu('Load layers')
+        loadNetworkAct = self.layersMenu.addAction('Load network into QGIS')
+        loadNetworkAct.triggered.connect(self.fw.importNetwork)
+        
+        loadReadingsAct = self.layersMenu.addAction('Load readings into QGIS')
+        loadReadingsAct.triggered.connect(self.fw.importReadings)
+
+        loadChangesAct = self.layersMenu.addAction('Load section_changes into QGIS')
+        loadChangesAct.triggered.connect(self.fw.importChanges)
+
+
+
+        #help
         helpMenu = self.topMenu.addMenu('Help')
         openHelpAct = helpMenu.addAction('Open help')
         openHelpAct.setToolTip('Open help in your default web browser')
@@ -191,22 +176,11 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
         self.filterLayerButton.clicked.connect(self.filterReadingsLayer)
         
-      
-        
-    def topoAutofit(self):
-        m = self.changesView.model()
-        self.undoStack.push(changesModel.methodCommand(m.topologyAutofit,None,m.deleteDicts,'topology based autofit'))
-        
 
     def filterReadingsLayer(self):
         run = self.currentRun()
         if run:
             self.fw.filterReadingsLayer(run)
-
-
-    def setXsp(self):
-        self.undoStack.push(self.changesView.model().setXspCommand(self.setXspDialog['xsp']))
-            
     
     
     def currentRun(self,message=True):      
@@ -296,9 +270,11 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
             with self.connectDialog.get_con() as con:
                 folder = os.path.join(os.path.dirname(__file__),'database')
                 file = os.path.join(folder,'setup.txt')
-                databaseFunctions.runSetupFile(cur=con.cursor(),file=file,printCom=True,recursive=False)
-                iface.messageBar().pushMessage('fitting tool: prepared database')
+               # databaseFunctions.runSetupFile(cur=con.cursor(),file=file,printCom=True,recursive=False)
+                databaseFunctions.runSetupFile(cur=con.cursor(),file=file)
 
+                iface.messageBar().pushMessage('fitting tool: prepared database')
+            self.connectToDatabase(self.connectDialog.get_db())
 
 
 #for requested view

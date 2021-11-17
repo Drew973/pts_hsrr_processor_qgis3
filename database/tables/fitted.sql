@@ -1,7 +1,7 @@
 set search_path to hsrr,public;
-;
 
-create table fitted
+
+create table if not exists fitted
 (
 pk serial
 ,run text
@@ -14,5 +14,4 @@ pk serial
 ,e_ch numeric
 ,readings_pk int
 ,rg numrange
-
 );

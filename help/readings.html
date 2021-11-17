@@ -24,22 +24,19 @@
 		<ul>
 		<li>run:which run the readings are in. Must be in run_info.</li>
 		<li>t:timestamp</li>
+		<li>f_line: which line of file data is from</li>
 		<li>raw_ch:chainage of the reading</li>
 		<li>rl:reading</li>
-		<li>s_point:start point</li>
-		<li>e_point:end point</li>
 		<li>vect:linestring geometry from start_point to end_point</li>
-		<li>ps_text:possible sections and directions that the reading could be in</li>
-		<li>ps:sec_rev possible sections and directions that the reading could be in</li>
+		<li>s_ch: start chainage of reading(km)</li>
+		<li>e_ch: end chainage of reading(km)</li>
 		</ul>
 
-
-
-
+	<p> s_ch and e_ch are calculated from f_line to ensure uniqueness (raw_ch sometimes decreases).</p>
 
 
  	<p> Created as:<p>
-	<object data="../database/tables/readings.txt" type="text/plain" typemustmatch="" width="500" style="height: 300px"></object>
+	<object data="../database/tables/readings.sql" type="text/plain" typemustmatch="" width="500" style="height: 500px"></object>
 	</p>
  
 

@@ -114,6 +114,7 @@ class changesModel(undoableTableModel.undoableTableModel):
                 res = [dict(r) for r in cur.fetchall()]
             self.select()
             return res
+        return []
 
 
 #returns command to set xsp

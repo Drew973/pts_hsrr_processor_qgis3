@@ -16,64 +16,53 @@
 
 
 
-
 <div class="main_div">
 <body>
 
-
         <h3 id="fitting">Fitting</h3>
+		<h4 id="section_changes table">section_changes table</h4>
 
-		<p>The routes table is used to fit <a href="readings.html">readings</a>  to a section,direction,xsp and section chainage. The fitting tab contains tools for editing it. <p>
 
-
-		<h4 id="routes table">Routes table</h4>
-		<p>The routes table contains the following columns</p>
+		<p>The section_changes table contains the following columns</p>
 		<ul>
 		
-		<li>sec:section label. Needs to be in <a href="network.html">network</a> </li>
+		<li>sec:section label. Needs to be in <a href="network.html">network</a>. Empty string ('') where gap or not in network. </li>
 		<li>reversed: if survey is in opposite direction to section.</li>
 		<li>xsp</li>
 		<li>run:needs to be in <a href="run_info.html">run_info</a>.</li>
-		<li>s,e=f_line where run enters/leaves section. </li>
-		<li>note=note for benefit of person fitting. Autofit adds rows with note of 'auto'.</li>
-		<li>pk=primary key.</li>
+		<li>ch:chainage where run enters section. </li>
+		<li>note:note for user. Has no effect.</li>
 		<li>start_sec_ch,end_sec_ch: Section chainages(in direction of section) where run enters/leaves section. Can be used to calculate section chainage.</li>
+		<li>pk(not displayed):primary key.</li>
+		<li>run(not displayed).</li>
+		<li>pt:point geometry(not displayed).</li>
 		</ul>
 
 
-		<p>Readings in run with s<=f_line<=e are fit to sec,reversed,xsp<p>
-		<p>The notes column is for the benefit of the person fitting. Autofit will insert rows with a note of 'auto'. <p>
-		<p>Files sometimes contain repeated chainages. f_line is used for fitting because it is unique(within the run) and increases in direction of survey.</p>
-
+		<p><a href="readings.html">Readings</a> from ch to next ch are fit to sec,reversed,xsp. Altering the section_changes table (through any means) will update the fitted,resized and coverage tables. <p>
+		<p>The fitting tab and menu contain tools for viewing and editing it.</p>
 
 		
-		<h4 id="sec_ch">Section Chainage</h4>
-			<p>Section chainage is usually calculated from the nearest point on the section to the reading.</p>
-			<p>Where start_sec_ch and end_sec_ch are set and >0 section chainage is calculated by interpolating between these.<p>
-			<p>This should be done where the nearest point of the section is not at the correct chainage.</p>
-			<p>This is important where the GPS has lost signal and for small roundabouts (that readings are closer to wrong side of). </p>
+		<p>Manually add rows through fitting,add row...</p>
+		<p>Drop rows by right clicking, delete selected rows. </p>
 
 		
 	<h4 id="autofit">Autofit</h4>
-		<P>Click the autofit button to automatically create the route for the selected run. It is likely to make mistakes where:<P>
+		<P>Autofit automatically creates the route for the selected run. It is likely to make mistakes where:<P>
 		<ul>
 		<li>The nearest section to a reading is not the correct one </li>
 		<li>The gps is inaccurate </li>
 		<li>The network is inaccurate </li>
 		</ul>
-		<P>Autofit does not work out xsp. Do this by manually or with update statement (update routes set xsp='CL1' where not reversed; update routes set xsp='CR1' where reversed;).</P>
-		<P> Autofit adds rows for each section near to and in the correct direction for the readings.</p>
+		<P>Autofit does not work out xsp.</P>
 
 
-	<h4 id="fitting">How to use</h4>
-		<ul>
-		<li>Autofit the route.</li>
-		<li>Manually remove any mistakes.</li>
-		<li>Rows with a yellow background have have a gap and should be checked. </li>
-		<li>Rows with a red background overlap by more than 1 reading and are probably wrong.</li>
-		<li>Right clicking a row then "select on layers" is a quick way to check a row.</li>
-		<li>Process the run.</li>
-		</ul>
+	<h4 id="sec_ch">Section Chainage</h4>
+		<p>Section chainage is usually calculated from the nearest point on the section to the reading.</p>
+		<p>Where start_sec_ch and end_sec_ch are set and >0 section chainage is calculated by interpolating between these.<p>
+		<p>This should be done where the nearest point of the section is not at the correct chainage.</p>
+		<p>This is important where the GPS has lost signal and for small roundabouts (that readings are closer to wrong side of). </p>
+
 
 	</body>
 

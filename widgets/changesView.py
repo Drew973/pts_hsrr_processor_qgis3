@@ -1,16 +1,16 @@
-from PyQt5.QtWidgets import QTableView,QMenu
+from PyQt5.QtWidgets import QTableView,QMenu,QDoubleSpinBox,QComboBox
 from PyQt5.QtSql import QSqlRelation
 from PyQt5.QtCore import Qt
 
 
 from hsrr_processor.models import changesModel,undoableTableModel
 from hsrr_processor import delegates
-from hsrr_processor.widgets import layerFunctions
-
+from hsrr_processor.widgets import layerFunctions,dict_dialog
 #from ..models import changesModel,undoableTableModel
 #from .. import delegates
 #from .. import layerFunctions
-
+import logging
+logger = logging.getLogger(__name__)
 
 
 class changesView(QTableView):
@@ -20,6 +20,24 @@ class changesView(QTableView):
         self.undoStack = undoStack
         self.fw = fieldsWidget
         
+        
+        #set xsp dialog
+        self.setXspDialog = dict_dialog.dictDialog(parent=self)
+        w = QComboBox(self.setXspDialog)
+        w.addItems(['CL1','CL2','CR1','CR2','LE','RE'])
+        self.setXspDialog.addWidget('xsp',w,True)
+        self.setXspDialog.accepted.connect(self.setXsp)  
+                
+        
+        #add row dialog        
+        self.addRowDialog = dict_dialog.dictDialog(parent=self)
+        w = QDoubleSpinBox(self.addRowDialog)
+        w.setSingleStep(0.1)
+        self.addRowDialog.addWidget('ch',w,True)
+        self.addRowDialog.accepted.connect(self.addRow)
+        
+        
+        #rows menu
         self.rowsMenu = QMenu(self)
         self.rowsMenu.setToolTipsVisible(True)
         
@@ -38,22 +56,52 @@ class changesView(QTableView):
         self.deleteRowsAct.triggered.connect(self.dropSelectedRows)
         
         
+        #top menu
+        self.fittingMenu = QMenu('Fitting')
+        setXspAct = self.fittingMenu.addAction('Set xsp of run...')
+        setXspAct.triggered.connect(self.setXspDialog.show)
+        
+        self.addRowAct = self.fittingMenu.addAction('Add row...')
+        self.addRowAct.triggered.connect(self.showAddDialog)
+        
+        
+        autofitMenu = self.fittingMenu.addMenu('Autofit')
+        topoAutofitAct = autofitMenu.addAction('Topology based')
+        topoAutofitAct.triggered.connect(self.topoAutofit)
+        self.fittingMenu.setEnabled(False)
+
+        
+        
     #connect to database and set model
     
     
     def setDb(self,db):    
         m = changesModel.changesModel(parent=self,db=db,undoStack=self.undoStack)
-        m.setRelation(m.fieldIndex('sec'),QSqlRelation('hsrr.network', 'sec', 'sec'))
         
-        self.setModel(m)
-        [self.setColumnHidden(col, True) for col in m.hiddenColIndexes]#hide run column
-        self.resizeColumnsToContents()
-        secCol = m.fieldIndex('sec')
-        self.setItemDelegateForColumn(secCol,delegates.secWidgetDelegate(parent=self,fw=self.fw,model=m,column=secCol))
+        if db.isOpen():
+            self.fittingMenu.setEnabled(True)        
+        
+            m.setRelation(m.fieldIndex('sec'),QSqlRelation('hsrr.network', 'sec', 'sec'))
+            
+            self.setModel(m)
+            [self.setColumnHidden(col, True) for col in m.hiddenColIndexes]#hide run column
+            self.resizeColumnsToContents()
+            secCol = m.fieldIndex('sec')
+            self.setItemDelegateForColumn(secCol,delegates.secWidgetDelegate(parent=self,fw=self.fw,model=m,column=secCol))
+    
+            self.setItemDelegateForColumn(m.fieldIndex('ch'),delegates.chainageWidgetDelegate(parent=self,fw=self.fw))     
+     
+            self.setItemDelegateForColumn(m.fieldIndex('sec'),delegates.searchableRelationalDelegate(self))
 
-        self.setItemDelegateForColumn(m.fieldIndex('ch'),delegates.chainageWidgetDelegate(parent=self,fw=self.fw))     
- 
-        self.setItemDelegateForColumn(m.fieldIndex('sec'),delegates.searchableRelationalDelegate(self))
+        else:
+            self.fittingMenu.setEnabled(False)
+
+        
+
+    def setRun(self,run):
+        self.model().setRun(run)
+        if run:
+            self.fittingMenu.setEnabled(True)
         
         
     #first index of selected rows
@@ -64,8 +112,28 @@ class changesView(QTableView):
       #  iface.messageBar().pushMessage('hsrr tool:no rows selected')    
 
 
-    def dropSelectedRows(self):
+    def topoAutofit(self):
+        m = self.model()
+        if m.run:
+            self.undoStack.push(changesModel.methodCommand(m.topologyAutofit,None,m.deleteDicts,'topology based autofit'))
+            
+
+    def setXsp(self):
+        self.undoStack.push(self.model().setXspCommand(self.setXspDialog['xsp']))
+
+
+    def showAddDialog(self):
+        if self.model().run:
+            self.addRowDialog.widget('ch').setValue(self.fw.lowestSelectedReading(self.currentRun()))
+            self.addRowDialog.show()
+    
+    
+    def addRow(self):
+        data = [{'run':self.currentRun(),'sec':'','reversed':None,'xsp':None,'ch':self.addRowDialog['ch'],'note':None,'start_sec_ch':None,'end_sec_ch':None}]
+        self.undoStack.push(undoableTableModel.insertDictsCommand(self.changesView.model(),data,'add row'))
         
+        
+    def dropSelectedRows(self):
         pkCol = self.model().fieldIndex('pk')
         pks = [{'pk':r.sibling(r.row(),pkCol).data()} for r in self.selectionModel().selectedRows()]
         self.undoStack.push(undoableTableModel.deleteDictsCommand(self.model(),pks,'drop selected rows'))
@@ -88,29 +156,23 @@ class changesView(QTableView):
             
            #select on readings        
             readingsLayer = self.fw['readings']
-            s_chField = self.fw['s_ch']
-            e_ch_Field = self.fw['e_ch']
-            runField = self.fw['run']
             
-            ch_field = self.model().fieldIndex('ch')
+
+            runFieldIndex = self.model().fieldIndex('run')
+            chField = self.model().fieldIndex('ch')
             
-            if readingsLayer and s_chField and e_ch_Field:
-                
-                fids = []
-                for i in inds:                    
-                    
-                    s = i.sibling(i.row(),ch_field).data()
-                    
-                    if i.row()<i.model().rowCount()-1:#0 indexed
-                        e = i.sibling(i.row()+1,ch_field).data()
-                        fids+=layerFunctions.readingsFids(readingsLayer,self.model().run,runField,s,s_chField,e,e_ch_Field)
-                    
-                    else:
-                        fids+=layerFunctions.readingsFids2(layer=readingsLayer,run=self.model().run,runField=runField,ch=s,e_chField=e_ch_Field)
-                        
             
-                readingsLayer.selectByIds(fids)  
+            #[[run,s_ch,e_ch]]            
+            def rse(model,row):
+                return [model.index(row,runFieldIndex).data(),model.index(row,chField).data(),model.index(row+1,chField).data()]#None if outside rowcount
+            
+            
+            #want to select features with s_ch > changes.ch for last feature.            
+            self.fw.selectOnReadings([rse(self.model(),i.row()) for i in inds])
+            #only want to zoom to these if no section selected
+            if not sects:
+                layerFunctions.zoomToSelected(readingsLayer)
+                    
+                    
+
         
-                #only want to zoom to these if no section selected
-                if not sects:
-                    layerFunctions.zoomToSelected(readingsLayer)

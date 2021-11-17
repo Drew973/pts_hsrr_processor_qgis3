@@ -1,3 +1,4 @@
+set search_path to hsrr,public;
 
 
 drop type if exists sec_rev cascade;

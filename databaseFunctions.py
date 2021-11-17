@@ -1,26 +1,28 @@
 import os 
 import psycopg2
 
-#from PyQt5.QtSql import QSqlDatabase
+
+import logging
+logger = logging.getLogger(__name__)
 
 
-#reads text file, splits into sql files or sql commands seperated by ; then runs them in order.
- #try/except in file with gui
- 
+'''
+run ';' seperated list of files consecutively.
+files relative paths from setup script
 '''
 
-go through ; seperated pieces of file.
+def runSetupFile(cur,file):
+    folder = os.path.dirname(file) 
 
-prints if printCom True
-
-if existing file then runSetupFile() on it
-else run as sql command.
-
-scripts need to be given as relative paths to file.
-'''
- 
-
-
+    with open(file) as f:
+        
+        for c in f.read().split(';'):
+            logger.info(c)
+            if c:
+                runScript(cur,os.path.join(folder,c.strip()))
+                    
+              
+                        
  
 # QSqlDatabase to psycopg2 connection
 def dbToCon(db):
@@ -28,33 +30,7 @@ def dbToCon(db):
  
  
  
- 
- #functions can have ; part way through
-def runSetupFile(cur,file,printCom=False,recursive=True):
-    
-    folder = os.path.dirname(file) 
-    
-    with open(file) as f:
-        
-        for c in f.read().split(';'):
-            com = c.strip()
-            f = os.path.join(folder,com)
-            if com:
-                if printCom:
-                    print(com)
-                
-                if os.path.exists(f):
-                    if recursive:
-                       runSetupFile(cur,f,printCom) 
-                    else:
-                        runScript(cur,f)
-                    
-                else:
-                    if com:
-                        cur.execute(com) 
- 
-    
- 
+
 def runScript(cur,script,args={}):
         s = script
         
