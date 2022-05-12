@@ -28,7 +28,7 @@ def zoomToSelected(layer):
     iface.setActiveLayer(a)
       
 
-
+'''
 #returns fids in run and with s_chField-e_cFieldh overlapping s_ch and e_ch
 #s_ch float
 #e_ch float
@@ -59,7 +59,7 @@ def readingsFids2(layer,run,runField,ch,e_chField):
 def filter_by_run(layer,run_field,run):
     layer.setSubsetString("%s = '%s'"%(run_field,run))
     
-    
+  '''  
     
 
 

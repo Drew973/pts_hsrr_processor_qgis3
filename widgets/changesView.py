@@ -1,6 +1,8 @@
 from PyQt5.QtWidgets import QTableView,QMenu
-from PyQt5.QtSql import QSqlRelation
+
 from PyQt5.QtCore import Qt
+from qgis.core import QgsFeatureRequest
+
 
 
 from hsrr_processor.models import changesModel,undoableTableModel
@@ -9,7 +11,7 @@ from hsrr_processor import layerFunctions
 
 #from ..models import changesModel,undoableTableModel
 #from .. import delegates
-#from .. import layerFunctions
+#from hsrr_processor import layerFunctions
 
 
 
@@ -43,7 +45,6 @@ class changesView(QTableView):
     
     def setDb(self,db):    
         m = changesModel.changesModel(parent=self,db=db,undoStack=self.undoStack)
-        m.setRelation(m.fieldIndex('sec'),QSqlRelation('hsrr.network', 'sec', 'sec'))
         
         self.setModel(m)
         [self.setColumnHidden(col, True) for col in m.hiddenColIndexes]#hide run column
@@ -56,67 +57,104 @@ class changesView(QTableView):
         self.setItemDelegateForColumn(m.fieldIndex('sec'),delegates.searchableRelationalDelegate(self))
         
         
-    #first index of selected rows
+    #list of row indexes
     def selectedRows(self):
-        inds = self.selectionModel().selectedRows()
-        if inds:
-            return inds
-      #  iface.messageBar().pushMessage('hsrr tool:no rows selected')    
+        return [i.row() for i in self.selectionModel().selectedRows()]
+    
 
 
     def dropSelectedRows(self):
-        
         pkCol = self.model().fieldIndex('pk')
         pks = [{'pk':r.sibling(r.row(),pkCol).data()} for r in self.selectionModel().selectedRows()]
         self.undoStack.push(undoableTableModel.deleteDictsCommand(self.model(),pks,'drop selected rows'))
     
+    
+    
+    def getNetworkLayer(self):
+        return self.fw['network']
+     
         
-        
-    #select selected rows of routes table on layers
-    def selectOnLayers(self):
+     
+    def getLabelField(self):
+        return self.fw['label']
+   
+    
+   
+    def getReadingsLayer(self):
+        return self.fw['readings']
+    
+    
+    
+    def getRunStartChainageField(self):
+        return self.fw['s_ch']
 
-        inds = self.selectedRows()
+
+
+    def getRunEndChainageField(self):
+       return self.fw['e_ch']    
+    
+    
+    
+    def getRun(self):
+        return self.model().run
+    
+    
+
+    def getRunField(self):
+        return self.fw['run']
         
-        if inds:
+        
+    
+#select selected rows on network layer
+    def selectOnNetwork(self):
+        labField = self.getLabelField()
+        network = self.getNetworkLayer()
+        if labField and network:
+            sects = self.model().sectionLabels(self.selectedRows())
+            layerFunctions.selectByVals(sects,network,labField)
+            layerFunctions.zoomToSelected(network)
             
-            #select on network
-            secCol = self.model().fieldIndex('sec')
-            sects = [i.sibling(i.row(),secCol).data() for i in inds]
-            sects = [s for s in sects if not s=='']
             
-            networkLayer = self.fw['network']
-            secField = self.fw['label']
             
-            if networkLayer and secField:
-                layerFunctions.selectByVals(sects, networkLayer, secField)
-                layerFunctions.zoomToSelected(networkLayer)
-       
+    def selectOnReadings(self):
+        sField = self.getRunStartChainageField()
+        eField = self.getRunEndChainageField()
+        layer = self.getReadingsLayer()
+        run = self.getRun()
+        runField = self.getRunField()
+
+        if sField and eField and layer:
             
-           #select on readings        
-            readingsLayer = self.fw['readings']
-            s_chField = self.fw['s_ch']
-            e_ch_Field = self.fw['e_ch']
-            runField = self.fw['run']
+            if run and runField:
+                runFilt = '"{}" = \'{}\' and '.format(runField,run)
             
-            ch_field = self.model().fieldIndex('ch')
+            else:
+                runFilt = ''
             
-            if readingsLayer and s_chField and e_ch_Field:
+            chainages = self.model().runChainages(self.selectedRows())#only includes current run
+            fids = []
+            r = QgsFeatureRequest()
+            
+            for s,e in chainages:
                 
-                fids = []
-                for i in inds:                    
-                    
-                    s = i.sibling(i.row(),ch_field).data()
-                    
-                    if i.row()<i.model().rowCount()-1:#0 indexed
-                        e = i.sibling(i.row()+1,ch_field).data()
-                        fids+=layerFunctions.readingsFids(readingsLayer,self.model().run,runField,s,s_chField,e,e_ch_Field)
-                    
-                    else:
-                        fids+=layerFunctions.readingsFids2(layer=readingsLayer,run=self.model().run,runField=runField,ch=s,e_chField=e_ch_Field)
-                        
+                if e is None:
+                    r.setFilterExpression(runFilt+'{eField}>{s}'.format(eField=eField,s=s))#want where ranges overlap
+
+                else:
+                    r.setFilterExpression(runFilt+'"{sField}"<={e} and {eField}>{s}'.format(sField=sField,e=e,eField=eField,s=s))#want where ranges overlap
+                
+                print(r.filterExpression())
+                
+                for f in layer.getFeatures(r):
+                    fids.append(f.id())
             
-                readingsLayer.selectByIds(fids)  
-        
-                #only want to zoom to these if no section selected
-                if not sects:
-                    layerFunctions.zoomToSelected(readingsLayer)
+            
+            layer.selectByIds(fids)
+            if fids:
+                layerFunctions.zoomToSelected(layer)
+
+                    
+                    
+    def selectOnLayers(self):
+        self.selectOnNetwork()
+        self.selectOnReadings()

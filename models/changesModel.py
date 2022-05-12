@@ -11,9 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 import psycopg2
+import psycopg2.extras#not always imported with import psycopyg2. version dependent.
 
-from . import undoableTableModel
-
+from hsrr_processor.models import undoableTableModel
+from PyQt5.QtSql import QSqlRelation
 
 
 
@@ -76,6 +77,8 @@ class changesModel(undoableTableModel.undoableTableModel):
         #self.setRelation(self.fieldIndex('sec'),QSqlRelation('hsrr.network','sec','sec'))
         #self.setJoinMode(QSqlRelationalTableModel.LeftJoin	)
         self.run = None
+        self.setRelation(self.fieldIndex('sec'),QSqlRelation('hsrr.network', 'sec', 'sec'))
+
 
 
     def setRun(self,run):
@@ -85,7 +88,6 @@ class changesModel(undoableTableModel.undoableTableModel):
         self.setFilter(filt)
         self.select()
         self.run = run
-
         
     
     
@@ -96,12 +98,12 @@ class changesModel(undoableTableModel.undoableTableModel):
             return [dict(r) for r in cur.fetchall()]
     
             
-    
-    
+        
     #returns QundoCommand to drop primary keys pks
     def dropCommand(self,pks,description=''):
         return methodCommand(self.drop,pks,self.insert,description)
         
+    
 
     #execute_batch can return results in psycopg2 >=2.8
     #autofit run, returning primary keys of new rows
@@ -115,11 +117,118 @@ class changesModel(undoableTableModel.undoableTableModel):
             self.select()
             return res
 
+# execute_batch can return results in psycopg2 >=2.8
+# autofit run, returning primary keys of new rows
+    def simpleAutofit(self, arg=None):
+        logger.info('simpleAutofit(),run %s' % (self.run))
+        if self.run is not None:
+            with self.con() as con:
+                cur = con.cursor(cursor_factory=psycopg2.extras.DictCursor)
+                cur.execute('select pk from hsrr.simpleAutofit(%(run)s)', {'run': self.run})
+                res = [dict(r) for r in cur.fetchall()]
+            self.select()
+            return res
+
+
+
+
+# execute_batch can return results in psycopg2 >=2.8
+# autofit run, returning primary keys of new rows
+    def sequencialScoreAutofit(self, arg=None):
+        logger.info('sequencialScoreAutofit(),run %s' % (self.run))
+        if self.run is not None:
+            with self.con() as con:
+                cur = con.cursor(cursor_factory=psycopg2.extras.DictCursor)
+                cur.execute('select pk from hsrr.sequencial_score_autofit(%(run)s)', {'run': self.run})
+                res = [dict(r) for r in cur.fetchall()]
+            self.select()
+            return res
+
+
+
+
+
+
+
+
 
 #returns command to set xsp
     def setXspCommand(self,xsp,description='set xsp'):
         col = self.fieldIndex('xsp')
         return multiUpdateCommand(data={self.index(row,col):xsp for row in range(self.rowCount())},description=description)
+
+
+
+    def sectionLabels(self,rows):
+        col = self.fieldIndex('sec')
+        return [self.index(r,col).data() for r in rows]
+
+
+    def runChainages(self,rows):
+        return [self.runChainage(r) for r in rows]
+
+
+
+    def runChainage(self,row):
+        col = self.fieldIndex('ch')
+        s = self.index(row,col).data()
+        e = self.index(row+1,col).data()
+        return (s,e)
+
+
+    def setNetworkLayer(self,layer):
+        self._networkLayer = layer
+
+
+
+    def getNetworkLayer(self):
+        return self._networkLayer
+
+
+    def setLabelField(self,field):
+        self._labelField = field
+
+    
+
+#run query and get result of 1st line
+    def singleLineQuery(self, query,args):
+        with self.con() as con:
+            cur = con.cursor()
+            cur.execute(query,args)
+            return cur.fetchone()
+
+
+
+    def XYToSecChainage(self, row, x ,y):
+        sec = self.sectionLabels(row)
+        if sec:
+            sec = sec[0]
+            return self.singleLineQuery('select hsrr.point_to_sec_ch(%(x)s,%(y)s,%(sec)s)', {'x': x, 'y': y, 'sec': sec})
+        
+        
+    
+    def XYToRunChainage(self, x, y):
+        if self.run is not None:
+            return self.singleLineQuery('select hsrr.point_to_run_chainage(%(x)s,%(y)s,%(run)s)', {'x': x, 'y': y, 'run': self.run})
+
+
+    
+    def secChainageToXY(self,row,ch):
+        sec = self.sectionLabels(row)
+        if sec:
+            sec = sec[0]
+            x = self.singleLineQuery('select hsrr.sec_ch_to_x(%(ch)s,%(sec)s)', {'ch': ch, 'sec': sec})
+            y = self.singleLineQuery('select hsrr.sec_ch_to_y(%(ch)s,%(sec)s)', {'ch': ch, 'sec': sec})
+            return (x,y)
+
+
+   # def addDummy(self,ch):
+      #  if not self.run is None:
+        #    with self.con() as con:
+          #      cur = con.cursor(cursor_factory=psycopg2.extras.DictCursor)
+          #      cur.execute("insert into hsrr.section_changes(run,sec,ch) values(%(run)s,'D','%(ch)s) returning pk",{'run':self.run,'ch':ch})
+         #       for r in cur.fetchall():
+          #          return r[0]
 
         
     # data like [{pk:,sec:}...]

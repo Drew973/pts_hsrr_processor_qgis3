@@ -1,0 +1,107 @@
+INFO:hsrr_processor.models.changesModel:setRun(A1 SB RE)
+INFO:hsrr_processor.models.changesModel:run='A1 SB RE'
+INFO:hsrr_processor.models.changesModel:setRun(A180 WB LE)
+INFO:hsrr_processor.models.changesModel:run='A180 WB LE'
+INFO:hsrr_processor.models.changesModel:setRun(A180 WB RE)
+INFO:hsrr_processor.models.changesModel:run='A180 WB RE'
+INFO:hsrr_processor.models.changesModel:setRun(A180 WB LE)
+INFO:hsrr_processor.models.changesModel:run='A180 WB LE'
+INFO:hsrr_processor.models.changesModel:setRun(A180 WB RE)
+INFO:hsrr_processor.models.changesModel:run='A180 WB RE'
+INFO:hsrr_processor.models.changesModel:simpleAutofit(),run A180 WB RE
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 309}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 306}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 305}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 304}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 296}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 299}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 288}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 314}])
+INFO:hsrr_processor.models.changesModel:setRun(A1M NB CL1)
+INFO:hsrr_processor.models.changesModel:run='A1M NB CL1'
+INFO:hsrr_processor.models.changesModel:simpleAutofit(),run A1M NB CL1
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 397}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 385}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 402}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 406}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 403}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 398}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 399}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 371}])
+INFO:hsrr_processor.models.undoableTableModel:insertDicts([{'pk': 371, 'run': 'A1M NB CL1', 'sec': '4400A1M/17', 'reversed': False, 'xsp': None, 'ch': Decimal('17.01'), 'note': None, 'start_sec_ch': Decimal('0'), 'end_sec_ch': Decimal('0.354'), 'pt': None}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 380}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 381}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 382}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 384}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 332}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 336}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 337}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 345}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 346}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 349}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 350}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 358}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 359}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 363}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 364}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 319}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 320}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 324}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 326}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 325}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 317}])
+INFO:hsrr_processor.models.undoableTableModel:insertDicts([{'run': 'A1M NB CL1', 'sec': 'D', 'reversed': None, 'xsp': None, 'ch': 37.15, 'note': None, 'start_sec_ch': None, 'end_sec_ch': None}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 315}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 330}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 316}])
+INFO:hsrr_processor.models.changesModel:setRun(A1M NB LE)
+INFO:hsrr_processor.models.changesModel:run='A1M NB LE'
+INFO:hsrr_processor.models.changesModel:simpleAutofit(),run A1M NB LE
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 488}, {'pk': 489}, {'pk': 493}, {'pk': 494}, {'pk': 497}, {'pk': 490}, {'pk': 478}, {'pk': 498}])
+INFO:hsrr_processor.models.changesModel:setRun(A1 SB RE)
+INFO:hsrr_processor.models.changesModel:run='A1 SB RE'
+INFO:hsrr_processor.models.changesModel:setRun(A1M NB LE)
+INFO:hsrr_processor.models.changesModel:run='A1M NB LE'
+INFO:hsrr_processor.models.changesModel:setRun(A1M SB LE)
+INFO:hsrr_processor.models.changesModel:run='A1M SB LE'
+INFO:hsrr_processor.models.changesModel:setRun(A1M SB CL1)
+INFO:hsrr_processor.models.changesModel:run='A1M SB CL1'
+INFO:hsrr_processor.models.changesModel:setRun(A1M NB RE)
+INFO:hsrr_processor.models.changesModel:run='A1M NB RE'
+INFO:hsrr_processor.models.changesModel:setRun(A1M NB LE)
+INFO:hsrr_processor.models.changesModel:run='A1M NB LE'
+INFO:hsrr_processor.models.changesModel:setRun(A1M NB RE)
+INFO:hsrr_processor.models.changesModel:run='A1M NB RE'
+INFO:hsrr_processor.models.changesModel:setRun(A1M NB LE)
+INFO:hsrr_processor.models.changesModel:run='A1M NB LE'
+INFO:hsrr_processor.models.changesModel:setRun(A1M NB RE)
+INFO:hsrr_processor.models.changesModel:run='A1M NB RE'
+INFO:hsrr_processor.models.changesModel:sequencialScoreAutofit(),run A1M NB RE
+INFO:hsrr_processor.models.changesModel:sequencialScoreAutofit(),run A1M NB RE
+INFO:hsrr_processor.models.changesModel:setRun(A1M SB CL1)
+INFO:hsrr_processor.models.changesModel:run='A1M SB CL1'
+INFO:hsrr_processor.models.changesModel:sequencialScoreAutofit(),run A1M SB CL1
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 509}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 507}])
+INFO:hsrr_processor.models.undoableTableModel:insertDicts([{'run': 'A1M SB CL1', 'sec': 'D', 'reversed': None, 'xsp': None, 'ch': 4.8, 'note': None, 'start_sec_ch': None, 'end_sec_ch': None}])
+INFO:hsrr_processor.models.undoableTableModel:insertDicts([{'run': 'A1M SB CL1', 'sec': 'D', 'reversed': None, 'xsp': None, 'ch': 4.36, 'note': None, 'start_sec_ch': None, 'end_sec_ch': None}])
+INFO:hsrr_processor.models.changesModel:setRun(A1M SB LE)
+INFO:hsrr_processor.models.changesModel:run='A1M SB LE'
+INFO:hsrr_processor.models.changesModel:setRun(A1M SB CL1)
+INFO:hsrr_processor.models.changesModel:run='A1M SB CL1'
+INFO:hsrr_processor.models.undoableTableModel:insertDicts([{'run': 'A1M SB CL1', 'sec': 'D', 'reversed': None, 'xsp': None, 'ch': 41.75, 'note': None, 'start_sec_ch': None, 'end_sec_ch': None}])
+INFO:hsrr_processor.models.changesModel:setRun(A1M SB LE)
+INFO:hsrr_processor.models.changesModel:run='A1M SB LE'
+INFO:hsrr_processor.models.changesModel:sequencialScoreAutofit(),run A1M SB LE
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 566}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 565}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 572}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 570}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 567}])
+INFO:hsrr_processor.models.undoableTableModel:deleteDicts([{'pk': 568}])
+INFO:hsrr_processor.models.undoableTableModel:insertDicts([{'run': 'A1M SB LE', 'sec': 'D', 'reversed': None, 'xsp': None, 'ch': 4.3, 'note': None, 'start_sec_ch': None, 'end_sec_ch': None}])
+INFO:hsrr_processor.models.changesModel:setRun(A1M SB RE)
+INFO:hsrr_processor.models.changesModel:run='A1M SB RE'
+INFO:hsrr_processor.models.changesModel:setRun(A1M SB LE)
+INFO:hsrr_processor.models.changesModel:run='A1M SB LE'
+INFO:hsrr_processor.models.undoableTableModel:insertDicts([{'run': 'A1M SB LE', 'sec': 'D', 'reversed': None, 'xsp': None, 'ch': 5.63, 'note': None, 'start_sec_ch': None, 'end_sec_ch': None}])

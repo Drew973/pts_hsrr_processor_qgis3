@@ -134,11 +134,9 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
             self.addRowDialog.widget('ch').setValue(self.fw.lowestSelectedReading(self.currentRun()))
             self.addRowDialog.show()
     
-    
     def addRow(self):
-        data = [{'run':self.currentRun(),'sec':'','reversed':None,'xsp':None,'ch':self.addRowDialog['ch'],'note':None,'start_sec_ch':None,'end_sec_ch':None}]
+        data = [{'run':self.currentRun(),'sec':'D','reversed':None,'xsp':None,'ch':self.addRowDialog['ch'],'note':None,'start_sec_ch':None,'end_sec_ch':None}]
         self.undoStack.push(undoableTableModel.insertDictsCommand(self.changesView.model(),data,'add row'))
-
 
     def initTopMenu(self):
         self.topMenu = QMenuBar()
@@ -173,12 +171,19 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.addRowAct = self.fittingMenu.addAction('Add row...')
         self.addRowAct.triggered.connect(self.showAddDialog)
         
-        
+        #autofit menu
         autofitMenu = self.fittingMenu.addMenu('Autofit')
         topoAutofitAct = autofitMenu.addAction('Topology based')
         topoAutofitAct.triggered.connect(self.topoAutofit)
 
+        simpleAutofitAct = autofitMenu.addAction('Add all')
+        simpleAutofitAct.triggered.connect(self.simpleAutofit)
+     
         
+        simpleAutofitAct = autofitMenu.addAction('Sequencial score autofit')
+        simpleAutofitAct.triggered.connect(self.sequencialScoreAutofit)
+        
+        #help menu
         helpMenu = self.topMenu.addMenu('Help')
         openHelpAct = helpMenu.addAction('Open help')
         openHelpAct.setToolTip('Open help in your default web browser')
@@ -186,16 +191,31 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
         self.filterLayerButton.clicked.connect(self.filterReadingsLayer)
         
+        
       
     def topoAutofit(self):
         m = self.changesView.model()
         self.undoStack.push(changesModel.methodCommand(m.topologyAutofit,None,m.deleteDicts,'topology based autofit'))
         
+        
+        
+    def simpleAutofit(self):
+        m = self.changesView.model()
+        self.undoStack.push(changesModel.methodCommand(m.simpleAutofit,None,m.deleteDicts,'simple autofit'))
+        
+
+
+    def sequencialScoreAutofit(self):
+        m = self.changesView.model()
+        self.undoStack.push(changesModel.methodCommand(m.sequencialScoreAutofit,None,m.deleteDicts,'sequencial score autofit'))
+
+
 
     def filterReadingsLayer(self):
         run = self.currentRun()
         if run:
             self.fw.filterReadingsLayer(run)
+
 
 
     def setXsp(self):
@@ -210,14 +230,17 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
             iface.messageBar().pushMessage('hsrr tool: no run selected')
                 
     
+    
     def coverage_show_all(self):
         self.requestedModel.setFilter('')
         self.requestedModel.select()
         
         
+        
     def coverageShowMissing(self):
         self.requestedModel.setFilter("coverage=0")
         self.requestedModel.select()
+
 
 
 #opens help/index.html in default browser
@@ -319,5 +342,6 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
       #  act.triggered.connect(lambda:self.select_on_network([i.data() for i in self.requested_view.selectionModel().selectedRows()]))
         self.requested_view.setContextMenuPolicy(Qt.CustomContextMenu);
         self.requested_view.customContextMenuRequested.connect(lambda pt:self.requested_menu.exec_(self.mapToGlobal(pt)))
+
 
 

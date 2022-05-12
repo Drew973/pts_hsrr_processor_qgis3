@@ -39,3 +39,15 @@ alter function autofit set search_path to hsrr,public;
 
 --with a as (select pk,best_sr(st_MakeLine(pt,lead(pt) over(order by ch))) from section_changes where run='SEW NB CL1')
 	--update section_changes set sec = (best_sr).sec, reversed = (best_sr).rev from a where a.pk=section_changes.pk and note='auto'
+	
+	
+	
+	
+	
+CREATE OR REPLACE FUNCTION autofit(rn text)
+RETURNS table (pk int) AS $$
+
+	insert into hsrr.section_changes(run,sec,reversed,ch,start_sec_ch,end_sec_ch)
+	select run,sec,start_sec_ch>end_sec_ch,start_run_ch,start_sec_ch,end_sec_ch from get_edges(rn)
+	returning pk;
+$$ LANGUAGE sql;

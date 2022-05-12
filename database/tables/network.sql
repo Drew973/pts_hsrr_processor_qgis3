@@ -12,6 +12,7 @@ create table if not exists network
     );
 
 
+insert into network(sec) values ('D');
 
 /*
 create table if not exists network
