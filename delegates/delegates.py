@@ -3,8 +3,7 @@ from PyQt5.QtSql import QSqlRelationalDelegate
 from PyQt5.QtWidgets import QComboBox,QLineEdit,QCompleter,QStyledItemDelegate
 from PyQt5.QtGui import QStandardItemModel
 
-from . import secWidget
-from . import chainageWidget
+from hsrr_processor.widgets import secWidget,chainageWidget
 
 
 

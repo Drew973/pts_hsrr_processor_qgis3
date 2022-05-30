@@ -1,21 +1,29 @@
 #import traceback
 import os
 
-from PyQt5.QtWidgets import QDoubleSpinBox,QMessageBox,QComboBox,QUndoStack,QDockWidget,QMenu,QMenuBar,QFileDialog
+from PyQt5.QtWidgets import QMessageBox,QComboBox,QUndoStack,QDockWidget,QMenu,QMenuBar,QFileDialog
 from PyQt5.QtSql import QSqlTableModel,QSqlDatabase
 from PyQt5.QtGui import QDesktopServices
 
 from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
 from qgis.utils import iface
 
-from .dict_dialog import dictDialog
-from .database_dialog.database_dialog import database_dialog
-from . import hsrrFieldsWidget,databaseFunctions,commands
 
-from .models import undoableTableModel,changesModel,runInfoModel,betterTableModel
-from . hsrrprocessor_dockwidget_base import Ui_fitterDockWidgetBase
+
+from hsrr_processor.widgets import dict_dialog,hsrrFieldsWidget,add_row_dialog
+
+
+ 
+from hsrr_processor.database_dialog.database_dialog import database_dialog
+from hsrr_processor import databaseFunctions,commands
+
+from hsrr_processor.models import changesModel,runInfoModel,betterTableModel,network_model,readings_model
+from hsrr_processor.hsrr_processor_dockwidget_base import Ui_fitterDockWidgetBase
 
 import logging
+
+
+from PyQt5.QtWidgets import QDialog
 
 
 logging.basicConfig(filename = os.path.join(os.path.dirname(__file__),'hsrr_processor.log'),
@@ -45,15 +53,16 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.connectDialog = database_dialog(self,'hsrrProcessorDb')
 
         self.undoStack = QUndoStack(self)
+        
+        self.initFw()
+        
+        self.addRowDialog = add_row_dialog.addRowDialog(parent=self)
 
-        self.addRowDialog = dictDialog(parent=self)
-        w = QDoubleSpinBox(self.addRowDialog)
-        w.setSingleStep(0.1)
-        self.addRowDialog.addWidget('ch',w,True)
-        self.addRowDialog.accepted.connect(self.addRow)
+        self.initNetworkModel()
+        self.initReadingsModel()
+
     
-    
-        self.setXspDialog = dictDialog(parent=self)
+        self.setXspDialog = dict_dialog.dictDialog(parent=self)
         w = QComboBox(self.setXspDialog)
         w.addItems(['CL1','CL2','CR1','CR2','LE','RE'])
         self.setXspDialog.addWidget('xsp',w,True)
@@ -62,7 +71,6 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.initRunInfoMenu()
         self.initRequestedMenu()
         self.initTopMenu()
-        self.initFw()
     
         self.connectDialog.accepted.connect(self.connectToDatabase)   
         self.connectToDatabase(QSqlDatabase(),warning=False)#QSqlDatabase() will return default connection,
@@ -71,8 +79,29 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
         self.changesView.undoStack = self.undoStack
          
-        self.runBox.currentTextChanged.connect(lambda run:self.changesView.model().setRun(run))
+        self.runBox.currentIndexChanged.connect(self.runChange)
+        
+        self.nextRunButton.clicked.connect(self.nextRun)
+        self.lastRunButton.clicked.connect(self.lastRun)
+        
 
+
+    def runChange(self,row):
+        run = self.runBox.itemText(row)
+        self.changesView.model().setRun(run)
+        self.readingsModel.setRun(run)
+
+
+
+    def nextRun(self):
+        self.runBox.setCurrentIndex(self.runBox.currentIndex()+1)
+
+
+
+    def lastRun(self):
+        self.runBox.setCurrentIndex(self.runBox.currentIndex()-1)
+        
+        
 
     def initFw(self):
         self.fw = hsrrFieldsWidget.hsrrFieldsWidget(self)
@@ -105,20 +134,60 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
             self.prepareAct.setEnabled(True)
        
         
-        self.changesView.setDb(db)#want runbox.currentTextChanged to trigger setRun.
+        self.connectChangesModel(db)#want runbox.currentTextChanged to trigger setRun.
         self.connectRunInfo(db)
         self.connectCoverage(db)
         
-      #  self.connectNetworkModel(db)
+        self.networkModel.setDb(db)
+        self.readingsModel.setDb(db)
+        
+        self.runChange(self.runBox.currentIndex())
         self.undoStack.clear()
 
-
- #   def connectNetworkModel(self,db):
- #       self.networkModel = QSqlQueryModel(self)
-   #     self.networkModel.setQuery('select sec from hsrr.network',db)
-       # self.changesView.set delegates.secWidgetDelegate
-
         
+
+    def connectChangesModel(self,db):
+        self.changesModel = changesModel.changesModel(parent=self,db=db,undoStack=self.undoStack)
+        self.changesModel.setNetworkModel(self.networkModel)
+        self.changesModel.setReadingsModel(self.readingsModel)
+        self.changesView.setChangesModel(self.changesModel)
+        self.addRowDialog.setRouteModel(self.changesModel)
+
+
+
+    def initReadingsModel(self):
+        self.readingsModel = readings_model.readingsModel(parent=self)
+        self.changesView.setReadingsModel(self.readingsModel)
+        
+        self.fw.getWidget('s_ch').fieldChanged.connect(self.readingsModel.setStartChainageField)
+        self.readingsModel.setStartChainageField(self.fw.getWidget('s_ch').currentField())
+
+        self.fw.getWidget('e_ch').fieldChanged.connect(self.readingsModel.setEndChainageField)
+        self.readingsModel.setEndChainageField(self.fw.getWidget('e_ch').currentField())
+
+        self.fw.getWidget('readings').layerChanged.connect(self.readingsModel.setLayer)
+        self.readingsModel.setLayer(self.fw.getWidget('readings').currentLayer())
+
+        self.fw.getWidget('run').fieldChanged.connect(self.readingsModel.setRunField)
+        self.readingsModel.setRunField(self.fw.getWidget('run').currentField())
+
+        self.addRowDialog.setReadingsModel(self.readingsModel)
+
+
+
+    def initNetworkModel(self):
+        self.networkModel = network_model.networkModel()
+        
+        self.fw.getWidget('label').fieldChanged.connect(self.networkModel.setField)
+        self.networkModel.setField(self.fw.getWidget('label').currentField())
+        
+        self.fw.getWidget('network').layerChanged.connect(self.networkModel.setLayer)
+        self.networkModel.setLayer(self.fw.getWidget('network').currentLayer())
+        
+      #  self.addRowDialog.setNetworkModel(self.networkModel)
+        self.changesView.setNetworkModel(self.networkModel)
+
+
 
     def connectRunInfo(self,db):
         self.runsModel = runInfoModel.runInfoModel(parent=self,db=db,undoStack=self.undoStack)
@@ -129,14 +198,11 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
     
         
-    def showAddDialog(self):
-        if self.currentRun():
-            self.addRowDialog.widget('ch').setValue(self.fw.lowestSelectedReading(self.currentRun()))
-            self.addRowDialog.show()
-    
     def addRow(self):
-        data = [{'run':self.currentRun(),'sec':'D','reversed':None,'xsp':None,'ch':self.addRowDialog['ch'],'note':None,'start_sec_ch':None,'end_sec_ch':None}]
-        self.undoStack.push(undoableTableModel.insertDictsCommand(self.changesView.model(),data,'add row'))
+        self.addRowDialog.refresh() 
+        self.addRowDialog.show()
+            
+    
 
     def initTopMenu(self):
         self.topMenu = QMenuBar()
@@ -163,25 +229,21 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         uploadReadingsFolderAct =  self.uploadMenu.addAction('Upload all readings in folder...')
         uploadReadingsFolderAct.triggered.connect(self.uploadFolderDialog)        
         
-        
         self.fittingMenu = self.topMenu.addMenu('Fitting')
         setXspAct = self.fittingMenu.addAction('Set xsp of run...')
         setXspAct.triggered.connect(self.setXspDialog.show)
         
         self.addRowAct = self.fittingMenu.addAction('Add row...')
-        self.addRowAct.triggered.connect(self.showAddDialog)
+        self.addRowAct.triggered.connect(self.addRow)
         
         #autofit menu
         autofitMenu = self.fittingMenu.addMenu('Autofit')
-        topoAutofitAct = autofitMenu.addAction('Topology based')
-        topoAutofitAct.triggered.connect(self.topoAutofit)
 
         simpleAutofitAct = autofitMenu.addAction('Add all')
         simpleAutofitAct.triggered.connect(self.simpleAutofit)
      
-        
-        simpleAutofitAct = autofitMenu.addAction('Sequencial score autofit')
-        simpleAutofitAct.triggered.connect(self.sequencialScoreAutofit)
+        sequencialAutofitAct = autofitMenu.addAction('Sequencial score autofit')
+        sequencialAutofitAct.triggered.connect(self.sequencialScoreAutofit)
         
         #help menu
         helpMenu = self.topMenu.addMenu('Help')
@@ -192,22 +254,16 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.filterLayerButton.clicked.connect(self.filterReadingsLayer)
         
         
-      
-    def topoAutofit(self):
-        m = self.changesView.model()
-        self.undoStack.push(changesModel.methodCommand(m.topologyAutofit,None,m.deleteDicts,'topology based autofit'))
-        
-        
         
     def simpleAutofit(self):
         m = self.changesView.model()
-        self.undoStack.push(changesModel.methodCommand(m.simpleAutofit,None,m.deleteDicts,'simple autofit'))
+        m.simpleAutofit()
         
 
 
     def sequencialScoreAutofit(self):
         m = self.changesView.model()
-        self.undoStack.push(changesModel.methodCommand(m.sequencialScoreAutofit,None,m.deleteDicts,'sequencial score autofit'))
+        m.sequencialScoreAutofit()
 
 
 
@@ -339,7 +395,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     def initRequestedMenu(self):
         self.requested_menu = QMenu()
         zoomAct = self.requested_menu.addAction('zoom to section')
-      #  act.triggered.connect(lambda:self.select_on_network([i.data() for i in self.requested_view.selectionModel().selectedRows()]))
+     #  act.triggered.connect(lambda:self.select_on_network([i.data() for i in self.requested_view.selectionModel().selectedRows()]))
         self.requested_view.setContextMenuPolicy(Qt.CustomContextMenu);
         self.requested_view.customContextMenuRequested.connect(lambda pt:self.requested_menu.exec_(self.mapToGlobal(pt)))
 

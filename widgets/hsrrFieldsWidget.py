@@ -1,6 +1,6 @@
-from . import fieldsWidget
+from hsrr_processor.widgets import fieldsWidget
+from hsrr_processor.functions import layer_functions
 
-from . import layerFunctions
 
 
 class hsrrFieldsWidget(fieldsWidget.fieldsWidget):
@@ -39,12 +39,14 @@ class hsrrFieldsWidget(fieldsWidget.fieldsWidget):
         secField = self['label']
         
         if layer:
-            layerFunctions.selectByVals(sects, layer, secField)
+            layer_functions.selectByVals(sects, layer, secField)
+    
     
     
     def selectedSection(self):
         if self['label'] and self.getSelectedFeature('network'):
             return self.getSelectedFeature('network')[self['label']]
+
 
 
     def filterReadingsLayer(self,run):

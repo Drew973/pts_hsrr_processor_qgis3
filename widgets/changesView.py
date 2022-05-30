@@ -1,17 +1,9 @@
 from PyQt5.QtWidgets import QTableView,QMenu
-
 from PyQt5.QtCore import Qt
-from qgis.core import QgsFeatureRequest
+from PyQt5.QtGui import QKeySequence
 
 
-
-from hsrr_processor.models import changesModel,undoableTableModel
-from hsrr_processor import delegates
-from hsrr_processor import layerFunctions
-
-#from ..models import changesModel,undoableTableModel
-#from .. import delegates
-#from hsrr_processor import layerFunctions
+from hsrr_processor.delegates import sec_delegate,chainage_delegate
 
 
 
@@ -28,9 +20,15 @@ class changesView(QTableView):
         self.setContextMenuPolicy(Qt.CustomContextMenu);
         self.customContextMenuRequested.connect(lambda pt:self.rowsMenu.exec_(self.mapToGlobal(pt)))         
 
-        self.selectOnLayers_act = self.rowsMenu.addAction('select on layers')
-        self.selectOnLayers_act.setToolTip('select these rows on network and/or readings layers.')
-        self.selectOnLayers_act.triggered.connect(self.selectOnLayers)
+
+        self.selectOnLayersAct = self.rowsMenu.addAction('select on layers')
+        self.selectOnLayersAct.setShortcut(QKeySequence('Alt+1'))#focus policy of dockwidget probably important here
+       
+        self.selectOnLayersAct.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        self.addAction(self.selectOnLayersAct)#qmenu doesnt recieve keypress event if not open?
+
+        self.selectOnLayersAct.setToolTip('select these rows on network and/or readings layers.')
+        self.selectOnLayersAct.triggered.connect(self.selectOnLayers)
 
         #selectFromLayersAct = self.rows_menu.addAction('select from layers')
         #selectFromLayersAct.setToolTip('set selected rows from selected features of readings layer.')
@@ -39,23 +37,27 @@ class changesView(QTableView):
         self.deleteRowsAct = self.rowsMenu.addAction('delete selected rows')
         self.deleteRowsAct.triggered.connect(self.dropSelectedRows)
         
-        
-    #connect to database and set model
-    
-    
-    def setDb(self,db):    
-        m = changesModel.changesModel(parent=self,db=db,undoStack=self.undoStack)
-        
-        self.setModel(m)
-        [self.setColumnHidden(col, True) for col in m.hiddenColIndexes]#hide run column
-        self.resizeColumnsToContents()
-        secCol = m.fieldIndex('sec')
-        self.setItemDelegateForColumn(secCol,delegates.secWidgetDelegate(parent=self,fw=self.fw,model=m,column=secCol))
+        #create delegates
+        self.secDelegate = sec_delegate.secDelegate(self)
+        self.startSecChainageDelegate = chainage_delegate.sectionChainageDelegate(parent=self)
+        self.endSecChainageDelegate = chainage_delegate.sectionChainageDelegate(parent=self)
+        self.runChDelegate = chainage_delegate.runChainageDelegate(parent=self)
 
-        self.setItemDelegateForColumn(m.fieldIndex('ch'),delegates.chainageWidgetDelegate(parent=self,fw=self.fw))     
- 
-        self.setItemDelegateForColumn(m.fieldIndex('sec'),delegates.searchableRelationalDelegate(self))
+
+
+    def setChangesModel(self,model):
+        self.setModel(model)
+        [self.setColumnHidden(col, True) for col in model.hiddenColIndexes]#hide run column
+        self.resizeColumnsToContents()
+
         
+        self.setItemDelegateForColumn(model.fieldIndex('sec'),self.secDelegate)
+        self.setItemDelegateForColumn(model.fieldIndex('ch'),self.runChDelegate)    
+        self.setItemDelegateForColumn(model.fieldIndex('start_sec_ch'),self.startSecChainageDelegate)
+        self.setItemDelegateForColumn(model.fieldIndex('end_sec_ch'),self.endSecChainageDelegate)
+
+        
+
         
     #list of row indexes
     def selectedRows(self):
@@ -64,97 +66,33 @@ class changesView(QTableView):
 
 
     def dropSelectedRows(self):
-        pkCol = self.model().fieldIndex('pk')
-        pks = [{'pk':r.sibling(r.row(),pkCol).data()} for r in self.selectionModel().selectedRows()]
-        self.undoStack.push(undoableTableModel.deleteDictsCommand(self.model(),pks,'drop selected rows'))
-    
-    
-    
-    def getNetworkLayer(self):
-        return self.fw['network']
-     
-        
-     
-    def getLabelField(self):
-        return self.fw['label']
+        self.model().dropRows(self.selectedRows())
    
     
    
-    def getReadingsLayer(self):
-        return self.fw['readings']
+    def setReadingsModel(self,model):
+        self._readingsModel = model
+        self.runChDelegate.setModel(model)
     
     
+   
+    def getReadingsModel(self):
+        return self._readingsModel
+   
     
-    def getRunStartChainageField(self):
-        return self.fw['s_ch']
-
-
-
-    def getRunEndChainageField(self):
-       return self.fw['e_ch']    
-    
-    
-    
-    def getRun(self):
-        return self.model().run
-    
-    
-
-    def getRunField(self):
-        return self.fw['run']
-        
-        
-    
-#select selected rows on network layer
-    def selectOnNetwork(self):
-        labField = self.getLabelField()
-        network = self.getNetworkLayer()
-        if labField and network:
-            sects = self.model().sectionLabels(self.selectedRows())
-            layerFunctions.selectByVals(sects,network,labField)
-            layerFunctions.zoomToSelected(network)
-            
-            
-            
-    def selectOnReadings(self):
-        sField = self.getRunStartChainageField()
-        eField = self.getRunEndChainageField()
-        layer = self.getReadingsLayer()
-        run = self.getRun()
-        runField = self.getRunField()
-
-        if sField and eField and layer:
-            
-            if run and runField:
-                runFilt = '"{}" = \'{}\' and '.format(runField,run)
-            
-            else:
-                runFilt = ''
-            
-            chainages = self.model().runChainages(self.selectedRows())#only includes current run
-            fids = []
-            r = QgsFeatureRequest()
-            
-            for s,e in chainages:
-                
-                if e is None:
-                    r.setFilterExpression(runFilt+'{eField}>{s}'.format(eField=eField,s=s))#want where ranges overlap
-
-                else:
-                    r.setFilterExpression(runFilt+'"{sField}"<={e} and {eField}>{s}'.format(sField=sField,e=e,eField=eField,s=s))#want where ranges overlap
-                
-                print(r.filterExpression())
-                
-                for f in layer.getFeatures(r):
-                    fids.append(f.id())
-            
-            
-            layer.selectByIds(fids)
-            if fids:
-                layerFunctions.zoomToSelected(layer)
-
-                    
                     
     def selectOnLayers(self):
-        self.selectOnNetwork()
-        self.selectOnReadings()
+        self.model().selectOnLayers(self.selectedRows())
+    
+        
+        
+    def getNetworkModel(self):
+        return self._networkModel
+        
+    
+    
+    def setNetworkModel(self,model):
+        self._networkModel = model
+        self.secDelegate.setNetworkModel(self._networkModel)
+        self.startSecChainageDelegate.setModel(model)
+        self.endSecChainageDelegate.setModel(model)

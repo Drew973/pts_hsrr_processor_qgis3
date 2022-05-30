@@ -3,7 +3,7 @@
 
 from PyQt5.QtSql import QSqlTableModel#,QSqlRelationalTableModel,QSqlRelation
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QUndoCommand
+from PyQt5.QtWidgets import QUndoStack
 
 
 import logging
@@ -14,50 +14,14 @@ import psycopg2
 import psycopg2.extras#not always imported with import psycopyg2. version dependent.
 
 from hsrr_processor.models import undoableTableModel
-from PyQt5.QtSql import QSqlRelation
 
-
-
-'''
-command to use with method/function and inverse that take single argument and 
-return single argument
-
-
-calls method(args). stores returned value. undo calls inverseMethod() on this
-pass method like changesModel.insert
-'''
-
-class methodCommand(QUndoCommand):
-
-    def __init__(self,method,arg,inverseMethod,description='',parent=None):
-        super().__init__(description,parent)
-        self.method = method
-        self.arg = arg
-        self.inverseMethod = inverseMethod
-
-
-    def redo(self):
-        self.reverseArg = self.method(self.arg)
-
-
-    def undo(self):
-        self.arg = self.inverseMethod(self.reverseArg)
-        #update arg to allow for non deterministic eg serial primary key returned after insert command
-        
+from hsrr_processor.undo_commands.commands import multiUpdateCommand,pairedFunctionCommand
+from hsrr_processor.functions import layer_functions
 
 
 '''
-    command to update multiple indexes. uses undoableTableModel.updateCommand s.
-    data like [{index:value}]
+editable qsqlQueryModel. Can properly set order by. 
 '''
-class multiUpdateCommand(QUndoCommand):
-
-    
-    def __init__(self,data,description='multiple update',parent=None):
-        super().__init__(description,parent)
-        for k in data:
-            undoableTableModel.updateCommand(index=k,value=data[k],parent=self)
-
 
 
 
@@ -66,18 +30,46 @@ class changesModel(undoableTableModel.undoableTableModel):
 
     
 #db=qsqldatabase
-    def __init__(self,db,undoStack,parent=None):
+    def __init__(self,db,undoStack=QUndoStack(),parent=None):
         super().__init__(parent=parent,db=db,undoStack=undoStack,autoIncrementingColumns=['pk','pt'])
 
         self.setTable('hsrr.section_changes') 
         self.setEditStrategy(QSqlTableModel.OnFieldChange)
         self.setSort(self.fieldIndex("ch"),Qt.AscendingOrder)#sort by s
         self.select()
-        self.hiddenColIndexes=[self.fieldIndex(col) for col in ['run','pk','pt']]
-        #self.setRelation(self.fieldIndex('sec'),QSqlRelation('hsrr.network','sec','sec'))
-        #self.setJoinMode(QSqlRelationalTableModel.LeftJoin	)
+        self.hiddenColIndexes=[self.fieldIndex(col) for col in ['run','pk','pt','reversed']]
         self.run = None
-        self.setRelation(self.fieldIndex('sec'),QSqlRelation('hsrr.network', 'sec', 'sec'))
+        self.undoStack = undoStack
+    
+
+
+    def con(self):
+        db = self.database()
+        try:
+            return psycopg2.connect(host=db.hostName(),dbname=db.databaseName(),user=db.userName(),password=db.password())   
+        except:
+            return None
+
+
+
+  #  def select(self):
+   #     self.setQuery(self.query())
+
+
+
+    def database(self):
+        return self.query().database()
+
+
+
+
+    def _setData(self,index,value):
+        pass
+
+
+
+   # def setData(self, index, value, role=Qt.EditRole):
+    #    pass
 
 
 
@@ -89,6 +81,60 @@ class changesModel(undoableTableModel.undoableTableModel):
         self.select()
         self.run = run
         
+        
+        
+    def pk(self,index):
+        return self.index(index.row(),self.fieldIndex('pk')).data()
+                
+        
+        
+    def undo(self):
+        self.undoStack.undo()
+
+
+
+    def redo(self):
+        self.undoStack.redo()        
+        
+        
+        
+    def setReadingsModel(self,model):
+        self._readingsModel = model
+        
+        
+    
+    def XYToFloat(self,x,y,index):
+        c = index.column()
+    
+        if c == self.fieldIndex('start_sec_ch') or c == self.fieldIndex('end_sec_ch'):
+            return self._networkModel.XYToChainage(x,y,self.sectionLabel(index))#x,y,sec
+        
+    
+        if c==self.fieldIndex('ch'):
+            return self._readingsModel.XYToChainage(x,y)
+    
+   
+    
+    def floatToXY(self,value,index):
+        c = index.column()
+    
+        if c == self.fieldIndex('start_sec_ch') or c == self.fieldIndex('end_sec_ch'):
+            return self._networkModel.chainageToXY(value,self.sectionLabel(index))#x,y,sec
+        
+    
+        if c==self.fieldIndex('ch'):
+            return self._readingsModel.chainageToXY(value)
+    
+   
+    
+    def setNetworkModel(self,model):
+        self._networkModel = model
+    
+    
+    
+    def networkModel(self):
+        return self._networkModel
+    
     
     
     def dropRuns(self,runs):
@@ -99,10 +145,76 @@ class changesModel(undoableTableModel.undoableTableModel):
     
             
         
-    #returns QundoCommand to drop primary keys pks
-    def dropCommand(self,pks,description=''):
-        return methodCommand(self.drop,pks,self.insert,description)
+   # #returns QundoCommand to drop primary keys pks
+   # def dropCommand(self,pks,description=''):
+    #    return methodCommand(self.drop,pks,self.insert,description)
+            
+    
+    
+    def insertRow(self,sec='D',xsp='',ch=0,note='',startSecCh=0,endSecCh=0):
+        #data = [{'run':self.run,'sec':sec,'xsp':xsp,'ch':ch,'note':note,'startSecCh':startSecCh,'endSecCh':endSecCh}]
+        data = [(self.run,sec,xsp,ch,note,startSecCh,endSecCh)]
+        print('changesModel.insertData',data)
+        self.undoStack.push(pairedFunctionCommand(function = self._insertRows,inverseFunction=self._dropRows,description='insert row',data=data))
+    
+    
         
+        
+    #data like [{'pk':pk,'run':'run','sec':'','xsp':'','ch':'','note':'','startSecCh':'','endSecCh':''},...]
+    #returns pk of new row.
+    #can leave pk as 'DEFAULT'
+    def _insertRows(self,data):
+        #run,sec,xsp,ch,note,start_sec_ch,end_sec_ch,pk
+        
+        if len(data[0])==7:
+            cols = ['run','sec','xsp','ch','note','start_sec_ch','end_sec_ch']
+            
+        if len(data[0])==8:
+            cols = ['run','sec','xsp','ch','note','start_sec_ch','end_sec_ch','pk']          
+        
+        
+        q = '''insert into hsrr.section_changes({cols})
+        values %s
+        returning pk
+            '''.format(cols=','.join(cols))
+            #ok to do this here as not user editable
+
+            
+        con = self.con()
+        
+        if con is not None:
+            cur = con.cursor()            
+            r = {'pks':psycopg2.extras.execute_values(cur,q,data,fetch=True)}
+            con.commit()
+            self.select()
+            return r
+        
+        
+    
+    #model index
+    def dropRows(self,rows):
+        c = self.fieldIndex('pk')
+        pks = [self.index(r,c).data() for r in rows]
+        self.undoStack.push(pairedFunctionCommand(function = self._dropRows,inverseFunction=self._insertRows,description='drop rows',pks=pks))
+
+    
+    
+    def _dropRows(self,pks):
+        q = 'delete from hsrr.section_changes where pk = any(%(pks)s) returning run,sec,xsp,ch,note,start_sec_ch,end_sec_ch,pk'
+        r = {'data':self.runQuery(q,{'pks':pks})}
+        self.select()
+        return r
+    
+        
+        #print('dropRows',pks)
+    #    con = self.con()
+      #  if con is not None:
+      #      q = 'delete from hsrr.section_changes where pk = any(%(pks)s) returning run,sec,xsp,ch,note,start_sec_ch,end_sec_ch'
+      #      cur = con.cursor()
+       #     cur.execute(q,{'pks':pks})
+        #    self.select()
+         #   return {'data':[r for r in cur.fetchall()]}
+    
     
 
     #execute_batch can return results in psycopg2 >=2.8
@@ -117,38 +229,56 @@ class changesModel(undoableTableModel.undoableTableModel):
             self.select()
             return res
 
-# execute_batch can return results in psycopg2 >=2.8
-# autofit run, returning primary keys of new rows
-    def simpleAutofit(self, arg=None):
-        logger.info('simpleAutofit(),run %s' % (self.run))
+
+
+    def runQuery(self,query,args):
+        con = self.con()
+        if con is not None:
+            cur = con.cursor()
+            cur.execute(query,args)
+            r = [r for r in cur.fetchall()]
+            con.commit()
+            return r
+
+
+
+    def sequencialScoreAutofit(self):
+        self.undoStack.push(pairedFunctionCommand(function = self._sequencialScoreAutofit,inverseFunction=self._dropRows,description='sequencialScoreAutofit'))
+
+
+
+    def simpleAutofit(self):
+        self.undoStack.push(pairedFunctionCommand(function = self._simpleAutofit,inverseFunction=self._dropRows,description='sequencialScoreAutofit'))
+
+
+
+    def _simpleAutofit(self):
+      #  print('_sequencialScoreAutofit',self.run)
         if self.run is not None:
-            with self.con() as con:
-                cur = con.cursor(cursor_factory=psycopg2.extras.DictCursor)
-                cur.execute('select pk from hsrr.simpleAutofit(%(run)s)', {'run': self.run})
-                res = [dict(r) for r in cur.fetchall()]
-            self.select()
-            return res
+           r = {'pks':self.runQuery('select pk from hsrr.simple_autofit(%(run)s)', {'run': self.run})}
+           self.select()
+           return r
+        
+        
+
+    def _sequencialScoreAutofit(self):
+      #  print('_sequencialScoreAutofit',self.run)
+        if self.run is not None:
+           r = {'pks':self.runQuery('select pk from hsrr.filtered_autofit(%(run)s)', {'run': self.run})}
+           self.select()
+           return r
 
 
 
-
-# execute_batch can return results in psycopg2 >=2.8
-# autofit run, returning primary keys of new rows
-    def sequencialScoreAutofit(self, arg=None):
+    def filteredAutofit(self,arg=None):
         logger.info('sequencialScoreAutofit(),run %s' % (self.run))
         if self.run is not None:
             with self.con() as con:
                 cur = con.cursor(cursor_factory=psycopg2.extras.DictCursor)
-                cur.execute('select pk from hsrr.sequencial_score_autofit(%(run)s)', {'run': self.run})
+                cur.execute('select pk from hsrr.filtered_autofit(%(run)s)', {'run': self.run})
                 res = [dict(r) for r in cur.fetchall()]
             self.select()
             return res
-
-
-
-
-
-
 
 
 
@@ -164,6 +294,13 @@ class changesModel(undoableTableModel.undoableTableModel):
         return [self.index(r,col).data() for r in rows]
 
 
+
+    def sectionLabel(self,index):
+        col = self.fieldIndex('sec')
+        return self.index(index.row(),col).data()
+    
+    
+
     def runChainages(self,rows):
         return [self.runChainage(r) for r in rows]
 
@@ -176,64 +313,19 @@ class changesModel(undoableTableModel.undoableTableModel):
         return (s,e)
 
 
-    def setNetworkLayer(self,layer):
-        self._networkLayer = layer
-
-
-
-    def getNetworkLayer(self):
-        return self._networkLayer
-
-
-    def setLabelField(self,field):
-        self._labelField = field
-
-    
 
 #run query and get result of 1st line
     def singleLineQuery(self, query,args):
-        with self.con() as con:
-            cur = con.cursor()
+        c = self.con()
+        if c is not None:
+            cur = c.cursor()
             cur.execute(query,args)
             return cur.fetchone()
 
 
 
-    def XYToSecChainage(self, row, x ,y):
-        sec = self.sectionLabels(row)
-        if sec:
-            sec = sec[0]
-            return self.singleLineQuery('select hsrr.point_to_sec_ch(%(x)s,%(y)s,%(sec)s)', {'x': x, 'y': y, 'sec': sec})
-        
-        
-    
-    def XYToRunChainage(self, x, y):
-        if self.run is not None:
-            return self.singleLineQuery('select hsrr.point_to_run_chainage(%(x)s,%(y)s,%(run)s)', {'x': x, 'y': y, 'run': self.run})
-
-
-    
-    def secChainageToXY(self,row,ch):
-        sec = self.sectionLabels(row)
-        if sec:
-            sec = sec[0]
-            x = self.singleLineQuery('select hsrr.sec_ch_to_x(%(ch)s,%(sec)s)', {'ch': ch, 'sec': sec})
-            y = self.singleLineQuery('select hsrr.sec_ch_to_y(%(ch)s,%(sec)s)', {'ch': ch, 'sec': sec})
-            return (x,y)
-
-
-   # def addDummy(self,ch):
-      #  if not self.run is None:
-        #    with self.con() as con:
-          #      cur = con.cursor(cursor_factory=psycopg2.extras.DictCursor)
-          #      cur.execute("insert into hsrr.section_changes(run,sec,ch) values(%(run)s,'D','%(ch)s) returning pk",{'run':self.run,'ch':ch})
-         #       for r in cur.fetchall():
-          #          return r[0]
-
-        
-    # data like [{pk:,sec:}...]
-    #return origonal values
-    #for each dict in data:
-        #get origonal values of keys as dict
-        #add to results
+    def selectOnLayers(self,rows):        
+        self._networkModel.selectSectionsOnlayer(self.sectionLabels(rows))
+        self._readingsModel.selectOnLayer(self.runChainages(rows))
+        layer_functions.zoomToFeatures(self._networkModel.selectedFeatures()+self._readingsModel.selectedFeatures())
         

@@ -122,3 +122,20 @@ RETURNS Bool AS $$
 	return True;
 	END;			
 $$ LANGUAGE plpgsql;
+
+
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.network_geom(sect varchar,start_ch numeric,end_ch numeric) RETURNS geometry AS
+$$
+SELECT case 
+	when end_ch>start_ch then 
+		ST_LineSubstring(geom,greatest(start_ch/meas_len,0),least(end_ch/meas_len,1) )
+	else
+		st_reverse(ST_LineSubstring(geom,greatest(end_ch/meas_len,0),least(start_ch/meas_len,1) ))
+	end
+	from hsrr.network where sec=sect
+
+$$
+LANGUAGE sql immutable;

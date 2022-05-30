@@ -64,7 +64,27 @@
               </widget>
              </item>
              <item>
+              <widget class="QPushButton" name="lastRunButton">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Previous&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+               <property name="text">
+                <string>&lt;</string>
+               </property>
+              </widget>
+             </item>
+             <item>
               <widget class="undoableComboBox" name="runBox"/>
+             </item>
+             <item>
+              <widget class="QPushButton" name="nextRunButton">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Next&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+               <property name="text">
+                <string>&gt;</string>
+               </property>
+              </widget>
              </item>
              <item>
               <widget class="QPushButton" name="filterLayerButton">
@@ -140,12 +160,12 @@
   <customwidget>
    <class>undoableComboBox</class>
    <extends>QComboBox</extends>
-   <header>undoableComboBox</header>
+   <header>hsrr_processor.widgets.undoableComboBox</header>
   </customwidget>
   <customwidget>
    <class>changesView</class>
    <extends>QTableView</extends>
-   <header>widgets.changesView</header>
+   <header>hsrr_processor.widgets.changesView</header>
   </customwidget>
  </customwidgets>
  <resources/>

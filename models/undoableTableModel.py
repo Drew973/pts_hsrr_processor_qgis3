@@ -1,6 +1,6 @@
 from PyQt5.QtSql import QSqlTableModel,QSqlRelationalTableModel 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QUndoCommand,QTableView,QUndoStack
+from PyQt5.QtWidgets import QTableView,QUndoStack
 import psycopg2
 
 from psycopg2 import sql
@@ -8,85 +8,15 @@ from psycopg2 import sql
 import logging
 logger = logging.getLogger(__name__)
 
-
-'''
-command to update QSqlTableModel.
-uses primary key(s) to find index and calls QSqlTableModel.setData()
-'''
-class updateCommand(QUndoCommand):
-
-    def __init__(self,index,value,description='update',parent=None):
-        super().__init__(description,parent)
-        self.model = index.model()
-        self.column = index.column()
-        #self.pk = index.model().indexToPk(index)
-        self.oldValue = index.data()
-        self.newValue = value
-        self.primaryVals = index.model().primaryValues(index.row())#values of primary key
-
-
-    def redo(self):
-        index = self.index()
-        self.model.setDataCommandLess(index,self.newValue)
-        self.primaryVals = index.model().primaryValues(index.row())#might change primary values
-
-
-    def undo(self):
-        index = self.index()
-        self.model.setDataCommandLess(index,self.oldValue)
-        self.primaryVals = index.model().primaryValues(index.row())#might change primary values
-
-
-#gets model index from self.primaryVals
-    def index(self):
-        for i in range(self.model.rowCount()):
-            if self.model.primaryValues(i)==self.primaryVals:
-                return self.model.index(i,self.column)
+from hsrr_processor.undo_commands.commands import updateCommand
 
 
 
-'''
-command to insert data into model.
-'''
-class insertDictsCommand(QUndoCommand):
-
-    def __init__(self,model,data, description='insert',parent=None):
-        super().__init__(description,parent)
-        self.model = model
-        self.data = data
-
-    def redo(self):
-        self.pks = self.model.insertDicts(self.data)
-
-    def undo(self):
-        self.model.deleteDicts(self.data)
-
-
-
-
-'''
-command to insert data into model.
-'''
-class deleteDictsCommand(QUndoCommand):
-
-    def __init__(self,model,pks, description='insert',parent=None):
-        super().__init__(description,parent)
-        self.model = model
-        self.pks = pks
-
-    def redo(self):
-        self.data = self.model.deleteDicts(self.pks)
-        
-    def undo(self):
-        self.pks = self.model.insertDicts(self.data)
-
-
-    
 
 class undoableTableModel(QSqlRelationalTableModel):
     
-    def __init__(self,parent,db,undoStack,autoIncrementingColumns=[]):
-        super().__init__(parent,db)
+    def __init__(self,db,undoStack=QUndoStack(),autoIncrementingColumns=[],parent=None):
+        super().__init__(parent=parent,db=db)
         self.undoStack = undoStack
         self.autoIncrementingColumns = autoIncrementingColumns
 
@@ -95,6 +25,18 @@ class undoableTableModel(QSqlRelationalTableModel):
         db = self.database()
         return psycopg2.connect(host=db.hostName(),dbname=db.databaseName(),user=db.userName(),password=db.password())
 
+
+    
+
+    def undo(self):
+        self.undoStack.undo()
+
+
+
+    def redo(self):
+        self.undoStack.redo()
+        
+        
 
 #calls QSqlTableModel.setData()
     def setDataCommandLess(self, index, value, role=Qt.EditRole):
@@ -174,6 +116,7 @@ class undoableTableModel(QSqlRelationalTableModel):
       
         self.select()
         return res
+
 
 
    #data like [{columnName:value}]
