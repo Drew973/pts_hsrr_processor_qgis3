@@ -2,33 +2,26 @@
 import os
 
 from PyQt5.QtWidgets import QMessageBox,QComboBox,QUndoStack,QDockWidget,QMenu,QMenuBar,QFileDialog
-from PyQt5.QtSql import QSqlTableModel,QSqlDatabase
+from PyQt5.QtSql import QSqlDatabase
 from PyQt5.QtGui import QDesktopServices
 
 from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
 from qgis.utils import iface
 
 
-
 from hsrr_processor.widgets import dict_dialog,hsrrFieldsWidget,add_row_dialog
-
-
- 
 from hsrr_processor.database_dialog.database_dialog import database_dialog
-from hsrr_processor import databaseFunctions,commands
-
-from hsrr_processor.models import changesModel,runInfoModel,betterTableModel,network_model,readings_model
+from hsrr_processor import databaseFunctions
+from hsrr_processor.models import changesModel,run_info_model,network_model,readings_model,coverage_model
 from hsrr_processor.hsrr_processor_dockwidget_base import Ui_fitterDockWidgetBase
+
+
 
 import logging
 
 
-from PyQt5.QtWidgets import QDialog
-
-
-logging.basicConfig(filename = os.path.join(os.path.dirname(__file__),'hsrr_processor.log'),
-                    level=logging.INFO,filemode='w')
-
+logFile = os.path.join(os.path.dirname(__file__),'log.txt')                       
+logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG, force=True)
 logger = logging.getLogger(__name__)
 
 
@@ -61,6 +54,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.initNetworkModel()
         self.initReadingsModel()
 
+        self.runsModel = None
     
         self.setXspDialog = dict_dialog.dictDialog(parent=self)
         w = QComboBox(self.setXspDialog)
@@ -69,13 +63,10 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.setXspDialog.accepted.connect(self.setXsp)  
     
         self.initRunInfoMenu()
-        self.initRequestedMenu()
         self.initTopMenu()
     
         self.connectDialog.accepted.connect(self.connectToDatabase)   
         self.connectToDatabase(QSqlDatabase(),warning=False)#QSqlDatabase() will return default connection,
-        self.runBox.setUndoStack(self.undoStack)
-        self.runBox.description = 'change run'
 
         self.changesView.undoStack = self.undoStack
          
@@ -106,7 +97,6 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     def initFw(self):
         self.fw = hsrrFieldsWidget.hsrrFieldsWidget(self)
         self.tabs.insertTab(0,self.fw,'Fields')
-        self.changesView.fw = self.fw
     
     
     
@@ -135,7 +125,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
        
         
         self.connectChangesModel(db)#want runbox.currentTextChanged to trigger setRun.
-        self.connectRunInfo(db)
+        self.connectRunsModel(db)
         self.connectCoverage(db)
         
         self.networkModel.setDb(db)
@@ -157,7 +147,6 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
     def initReadingsModel(self):
         self.readingsModel = readings_model.readingsModel(parent=self)
-        self.changesView.setReadingsModel(self.readingsModel)
         
         self.fw.getWidget('s_ch').fieldChanged.connect(self.readingsModel.setStartChainageField)
         self.readingsModel.setStartChainageField(self.fw.getWidget('s_ch').currentField())
@@ -186,11 +175,12 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
       #  self.addRowDialog.setNetworkModel(self.networkModel)
         self.changesView.setNetworkModel(self.networkModel)
+        self.requestedView.setNetworkModel(self.networkModel)
 
 
 
-    def connectRunInfo(self,db):
-        self.runsModel = runInfoModel.runInfoModel(parent=self,db=db,undoStack=self.undoStack)
+    def connectRunsModel(self,db):
+        self.runsModel = run_info_model.runInfoModel(parent=self,db=db,undoStack=self.undoStack)
         self.runsView.setModel(self.runsModel)
         self.runBox.setModel(self.runsModel)
         self.runBox.setCurrentIndex(0)
@@ -225,9 +215,9 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
         self.uploadMenu = self.topMenu.addMenu('Upload')
         uploadReadingsAct =  self.uploadMenu.addAction('Upload readings spreadsheet...')
-        uploadReadingsAct.triggered.connect(self.uploadRunsDialog)
+        uploadReadingsAct.triggered.connect(self.uploadRuns)
         uploadReadingsFolderAct =  self.uploadMenu.addAction('Upload all readings in folder...')
-        uploadReadingsFolderAct.triggered.connect(self.uploadFolderDialog)        
+        uploadReadingsFolderAct.triggered.connect(self.uploadFolder)        
         
         self.fittingMenu = self.topMenu.addMenu('Fitting')
         setXspAct = self.fittingMenu.addAction('Set xsp of run...')
@@ -244,6 +234,11 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
      
         sequencialAutofitAct = autofitMenu.addAction('Sequencial score autofit')
         sequencialAutofitAct.triggered.connect(self.sequencialScoreAutofit)
+        
+        
+        leastCostAutofitAct = autofitMenu.addAction('Least cost autofit')
+        leastCostAutofitAct.triggered.connect(self.leastCostAutofit)  
+        
         
         #help menu
         helpMenu = self.topMenu.addMenu('Help')
@@ -267,10 +262,12 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
 
 
+    def leastCostAutofit(self):
+        self.changesView.model().leastCostAutofit()   
+        
+
     def filterReadingsLayer(self):
-        run = self.currentRun()
-        if run:
-            self.fw.filterReadingsLayer(run)
+        self.readingsModel.filterLayer()    
 
 
 
@@ -307,24 +304,23 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
 
 
-    def uploadRunsDialog(self):
-        files = QFileDialog.getOpenFileNames(caption='Upload readings', filter='*'+'.xls'+';;*')[0]#pyqt5
-        files = [os.path.normpath(f) for f in files]
-        logger.info('files'+str(files))
-        if files:
-            self.undoStack.push(commands.uploadRunsCommand(self.runsView.model(),files))
-                      
+    def uploadRuns(self):
+        if not self.runsModel is None:
+            files = QFileDialog.getOpenFileNames(caption='Upload readings', filter='*'+'.xls'+';;*')[0]#pyqt5
+            files = [os.path.normpath(f) for f in files]
+            if files:
+                 self.runsModel.uploadSpreadsheets(files)
             
             
-    def uploadFolderDialog(self):
-        folder = QFileDialog.getExistingDirectory(caption='upload all .xls in directory')#pyqt5
-        files = filterFiles(folder,'.xls')
-        logger.info('files'+str(files))
-     #   folder = file_dialogs.load_directory_dialog('.xls','upload all .xls in directory')
-     
-        if folder:
-            self.undoStack.push(commands.uploadRunsCommand(self.runsView.model(),files))
-                
+            
+    def uploadFolder(self):
+        if not self.runsModel is None:
+            folder = QFileDialog.getExistingDirectory(caption='upload all .xls in directory')#pyqt5
+            if folder:
+                files = filterFiles(folder,'.xls')
+                if files:
+                    self.runsModel.uploadSpreadsheets(files)
+         
             
         
     def closeEvent(self, event):
@@ -334,27 +330,20 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
 
     def connectCoverage(self,db):
-       # self.requestedModel = QSqlTableModel(db=self.dd.db)
-        self.requestedModel = betterTableModel.betterTableModel(db=db)
-        self.requestedModel.setEditStrategy(QSqlTableModel.OnFieldChange)        
-        self.requestedModel.setTable('hsrr.requested')
-        self.requestedModel.setEditable(False)#set all cols uneditable
-        self.requestedModel.setColEditable(self.requestedModel.fieldIndex("note"),True)#make note col editable
-
-        self.requestedModel.setSort(self.requestedModel.fieldIndex("sec"),Qt.AscendingOrder)
-        
-        self.requested_view.setModel(self.requestedModel)
-        self.requested_view.setColumnHidden(self.requestedModel.fieldIndex("pk"), True)#hide pk column
+        self.requestedModel = coverage_model.coverageModel(db=db,parent=self)
+        self.requestedView.setModel(self.requestedModel)
+        self.requestedView.setColumnHidden(self.requestedModel.fieldIndex("pk"), True)#hide pk column
         
         self.show_all_button.clicked.connect(self.coverage_show_all)
         self.show_missing_button.clicked.connect(self.coverageShowMissing)
             
+        
         if self.show_missing_button.isChecked():
             self.coverageShowMissing()
         else:
             self.coverage_show_all()
 
-        self.requested_view.resizeColumnsToContents()
+        self.requestedView.resizeColumnsToContents()
 
 
         
@@ -392,12 +381,12 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     
 
 #for requested view
-    def initRequestedMenu(self):
-        self.requested_menu = QMenu()
-        zoomAct = self.requested_menu.addAction('zoom to section')
+   # def initRequestedMenu(self):
+     #   self.requested_menu = QMenu()
+     #   zoomAct = self.requested_menu.addAction('zoom to section')
      #  act.triggered.connect(lambda:self.select_on_network([i.data() for i in self.requested_view.selectionModel().selectedRows()]))
-        self.requested_view.setContextMenuPolicy(Qt.CustomContextMenu);
-        self.requested_view.customContextMenuRequested.connect(lambda pt:self.requested_menu.exec_(self.mapToGlobal(pt)))
+     #   self.requested_view.setContextMenuPolicy(Qt.CustomContextMenu);
+    #    self.requested_view.customContextMenuRequested.connect(lambda pt:self.requested_menu.exec_(self.mapToGlobal(pt)))
 
 
 

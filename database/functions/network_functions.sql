@@ -135,7 +135,7 @@ SELECT case
 	else
 		st_reverse(ST_LineSubstring(geom,greatest(end_ch/meas_len,0),least(start_ch/meas_len,1) ))
 	end
-	from hsrr.network where sec=sect
+	from hsrr.network where sec=sect and meas_len>0
 
 $$
 LANGUAGE sql immutable;

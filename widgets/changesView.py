@@ -9,10 +9,9 @@ from hsrr_processor.delegates import sec_delegate,chainage_delegate
 
 class changesView(QTableView):
     
-    def __init__(self,parent=None,undoStack=None,fieldsWidget=None):
+    def __init__(self,parent=None,undoStack=None):
         super().__init__(parent)
         self.undoStack = undoStack
-        self.fw = fieldsWidget
         
         self.rowsMenu = QMenu(self)
         self.rowsMenu.setToolTipsVisible(True)
@@ -47,16 +46,18 @@ class changesView(QTableView):
 
     def setChangesModel(self,model):
         self.setModel(model)
-        [self.setColumnHidden(col, True) for col in model.hiddenColIndexes]#hide run column
+        
+        for c in model.hiddenColIndexes:
+            self.hideColumn(c)
+      
         self.resizeColumnsToContents()
-
         
         self.setItemDelegateForColumn(model.fieldIndex('sec'),self.secDelegate)
         self.setItemDelegateForColumn(model.fieldIndex('ch'),self.runChDelegate)    
         self.setItemDelegateForColumn(model.fieldIndex('start_sec_ch'),self.startSecChainageDelegate)
         self.setItemDelegateForColumn(model.fieldIndex('end_sec_ch'),self.endSecChainageDelegate)
+        self.setItemDelegateForColumn(model.fieldIndex('e_ch'),self.runChDelegate)    
 
-        
 
         
     #list of row indexes
@@ -67,17 +68,6 @@ class changesView(QTableView):
 
     def dropSelectedRows(self):
         self.model().dropRows(self.selectedRows())
-   
-    
-   
-    def setReadingsModel(self,model):
-        self._readingsModel = model
-        self.runChDelegate.setModel(model)
-    
-    
-   
-    def getReadingsModel(self):
-        return self._readingsModel
    
     
                     

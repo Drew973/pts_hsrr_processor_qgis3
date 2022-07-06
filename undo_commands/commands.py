@@ -6,38 +6,9 @@ Created on Tue May 24 12:21:33 2022
 """
 
 
-'''
-command to use with method/function and inverse that take single argument and 
-return single argument
-
-
-calls method(args). stores returned value. undo calls inverseMethod() on this
-pass method like changesModel.insert
-'''
 
 from PyQt5.QtWidgets import QUndoCommand
 
-
-#method is function or method to call.
-
-class methodCommand(QUndoCommand):
-
-    def __init__(self,method,arg,inverseMethod,description='',parent=None):
-        super().__init__(description,parent)
-        self.method = method
-        self.arg = arg
-        self.inverseMethod = inverseMethod
-
-
-    def redo(self):
-        self.reverseArg = self.method(self.arg)
-
-
-    def undo(self):
-        self.arg = self.inverseMethod(self.reverseArg)
-        #update arg to allow for non deterministic eg serial primary key returned after insert command
-        
-        
         
         
 '''
@@ -87,49 +58,26 @@ class multiUpdateCommand(QUndoCommand):
 
 
 
-'''
-command to insert data.
-model needs:
-    _insert(args) method that returns arguments to use to drop new data
-    _drop(args) method that returns arguments to use to insert the deleted data
-    
-    
 
-'''
-class insertCommand(QUndoCommand):
-    def __init__(self,model,args,description='insert',parent=None):
+class functionCommand(QUndoCommand):
+   
+    def __init__(self,function,args,inverseFunction,inverseArgs,description='',parent=None):
         super().__init__(description,parent)
-        self.model = model
+        self.function = function
         self.args = args
-    
-    
+        self.inverseFunction=inverseFunction
+        self.inverseArgs = inverseArgs
+
     def redo(self):
-        self.inverseArgs = self.model._insert(self.args)
-
-
+        self.result = self.function(**self.args)
+        
+        
     def undo(self):
-        self.model._drop(self.inverseArgs)
+        self.inverseResult = self.inverseFunction(**self.inverseArgs)
 
 
 
 
-
-class deleteCommand(QUndoCommand):
-    def __init__(self,model,args,description='delete',parent=None):
-        super().__init__(description,parent)
-        self.model = model
-        self.args = args
-    
-    
-    def redo(self):
-        self.inverseArgs = self.model._drop(self.args)
-
-
-    def undo(self):
-        self.model.insert(self.inverseArgs)
-        
-        
-        
 
 '''
 command to update QSqlTableModel.
@@ -165,41 +113,3 @@ class updateCommand(QUndoCommand):
             if self.model.primaryValues(i)==self.primaryVals:
                 return self.model.index(i,self.column)
 
-
-
-'''
-command to insert data into model.
-'''
-class insertDictsCommand(QUndoCommand):
-
-    def __init__(self,model,data, description='insert',parent=None):
-        super().__init__(description,parent)
-        self.model = model
-        self.data = data
-
-    def redo(self):
-        self.pks = self.model.insertDicts(self.data)
-
-    def undo(self):
-        self.model.deleteDicts(self.data)
-
-
-
-'''
-command to insert data into model.
-'''
-class deleteDictsCommand(QUndoCommand):
-
-    def __init__(self,model,pks, description='insert',parent=None):
-        super().__init__(description,parent)
-        self.model = model
-        self.pks = pks
-
-    def redo(self):
-        self.data = self.model.deleteDicts(self.pks)
-        
-    def undo(self):
-        self.pks = self.model.insertDicts(self.data)
-
-
-    

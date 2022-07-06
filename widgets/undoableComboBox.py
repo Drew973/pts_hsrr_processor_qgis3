@@ -1,6 +1,5 @@
 from PyQt5.QtWidgets import QUndoCommand,QComboBox
 
-from PyQt5.QtCore import pyqtSignal
 
 '''
 command to undo change to currentIndex of combobox

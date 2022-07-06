@@ -15,9 +15,8 @@ val numeric
 --sum(value*weight)/sum(weight)
 --will give div by 0 error when sum of weights is 0. probably a good thing
 
-CREATE OR REPLACE FUNCTION weighted_av(vals weighted_val[]) 
+CREATE OR REPLACE FUNCTION hsrr.weighted_av(vals hsrr.weighted_val[]) 
 RETURNS numeric AS $$
-	-- declare weight_sum numeric=sum((unnest).weight) from unnest(vals);
 	 BEGIN	
 		return sum((unnest).weight*(unnest).val)/sum((unnest).weight) from unnest(vals);
 	END;			

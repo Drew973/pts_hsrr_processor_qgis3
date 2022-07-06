@@ -101,6 +101,59 @@ def uploadReadings(uri,con):
     return run
     
 
+
+
+
+
+class uploadRunCommand(QUndoCommand):
+    
+    
+    #QSqlDatabase
+    def __init__(self,parent,db,xls):
+        super().__init__(parent)
+        
+        self.db = db
+        self.xls = xls
+
+
+
+    def redo(self):
+        logger.debug('uploadXls(%s,%s)'%(str(uri),str(run)))
+        
+        db = self.db
+        with psycopg2.connect(host=db.hostName(),dbname=db.databaseName(),user=db.userName(),password=db.password()) as con:
+            
+            
+            
+            cur = con.cursor()
+            
+            
+            
+            
+            
+            
+            q = '''
+            insert into hsrr.readings(run,f_line,t,raw_ch,rl,vect,s_ch,e_ch)
+            values(
+            %(run)s
+            ,%(f_line)s
+            ,to_timestamp(replace(%(t)s,' ',''),'dd/mm/yyyyHH24:MI:ss')
+            ,%(raw_ch)s
+            ,%(rl)s
+            ,ST_MakeLine(St_Transform(ST_SetSRID(ST_makePoint(%(start_lon)s,%(start_lat)s),4326),27700),St_Transform(ST_SetSRID(ST_makePoint(%(end_lon)s,%(end_lat)s),4326),27700))	
+            ,%(line)s * 0.1
+            ,%(line)s * 0.1 +0.1
+            )
+            '''
+            psycopg2.extras.execute_batch(cur,q,parseReadings.parseReadings(uri,run))
+            
+            
+        
+    def undo(self)
+
+
+
+
 if __name__=='__main__':
     uri = r'C:/Users/drew.bennett/Documents/hsrr_test/SEW NB CL1.xls'
     con = psycopg2.connect(host='localhost',dbname='hsrr_test',user='postgres')
@@ -108,5 +161,16 @@ if __name__=='__main__':
     con.commit()
     con.close()
     print('uploaded')
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     

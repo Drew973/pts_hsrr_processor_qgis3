@@ -69,11 +69,15 @@ def isReadings(uri):
     
 
 def test():
-    uri = r'C:\Users\drew.bennett\Documents\hsrr_test\example_data\SEW NB CL1.xls'
+    uri = r'C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\hsrr_processor\tests\example_data\SEW NB CL1.xls'
     #uri = r'C:\Users\drew.bennett\Documents\hsrr_test\example_data\other.xls'
 
     for r in parseReadings(uri,'test_run'):
         print(r)
     #print(isReadings(uri))
     
+    
+    
+if __name__ =='__main__':
+    test()
     

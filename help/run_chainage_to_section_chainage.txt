@@ -1,0 +1,11 @@
+
+
+section chainage for readings:
+
+want section chainages for each reading. from section_changes.
+
+
+linear interpolation. made hsrr.interpolate_2d(x numeric,x1 numeric,y1 numeric,x2 numeric,y2 numeric) function for this.
+sec_ch(run_ch) = m*run_ch+c
+
+

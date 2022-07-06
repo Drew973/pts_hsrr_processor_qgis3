@@ -19,17 +19,11 @@ class searchableComboBox(QComboBox):
         i = self.findData(self.currentText())
 
        
-        
-        
-        print('i=',i)
-        print(self.currentValue())
-        
         if i!=-1:
             self.setCurrentIndex(i)
         
         else:
             self.setEditText(self.currentValue())
-            
             
         super().focusOutEvent(e)
         

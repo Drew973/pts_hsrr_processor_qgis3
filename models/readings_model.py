@@ -27,7 +27,8 @@ from PyQt5.QtSql import QSqlQueryModel,QSqlQuery,QSqlDatabase
 
 from qgis.core import QgsCoordinateReferenceSystem
 
-
+import logging
+logger = logging.getLogger(__name__)
 
 class readingsModel(QSqlQueryModel):
     
@@ -56,7 +57,11 @@ class readingsModel(QSqlQueryModel):
         #    self.con = None
         
         
-      
+    def database(self):
+        return self._db
+        
+        
+        
     def getCrs(self):
         return QgsCoordinateReferenceSystem(27700)
     
@@ -77,18 +82,6 @@ class readingsModel(QSqlQueryModel):
             cur = c.cursor()
             cur.execute(query,args)
             return cur.fetchone()
-    
-    
-    
-    # x and y to run chainage
-    def XYToFloat(self,x,y,index=None):
-                
-        with self.con() as c:
-            cur = c.cursor()
-            cur.execute("select hsrr.point_to_run_chainage(%(x)s,%(y)s,%(run)s)",{'x':x,'y':y,'run':self._run})
-
-            return cur.fetchone()[0]
-        
         
         
     def selectedFeatures(self):
@@ -96,18 +89,30 @@ class readingsModel(QSqlQueryModel):
         if layer is not None:
             return [f for f in layer.selectedFeatures()]
         return []
-        
-        
-        # run chainage to x and y
-    def floatToXY(self,value,index=None):
-        return self.chainageToXY(value)
-       
        
         
-    def chainageToXY(self,chainage):
-        v = self.singleLineQuery('select hsrr.run_chainage_to_x(%(ch)s,%(run)s),hsrr.run_chainage_to_y(%(ch)s,%(run)s)',{'ch': chainage, 'run': self._run})
-        if v is not None:
-            return v
+       
+     #(x,y). if first true where multiple points with this chainage return first point in run , otherwise last.
+    def chainageToXY(self,chainage,first=True):
+        
+        q = QSqlQuery(self.database())
+        
+        if first:
+            q.prepare('select st_x(hsrr.run_ch_to_pt_s(:ch,:run)),st_y(hsrr.run_ch_to_pt_s(:ch,:run))')
+        else:
+            q.prepare('select st_x(hsrr.run_ch_to_pt_e(:ch,:run)),st_y(hsrr.run_ch_to_pt_e(:ch,:run))')
+
+        q.bindValue(':ch',chainage)
+        q.bindValue(':run',self._run)
+
+        if q.exec():
+            while q.next():
+                return (q.value(0),q.value(1))
+
+        else:
+            logger.info('query failed')
+
+    
         return (0,0)
         
     
@@ -243,4 +248,13 @@ class readingsModel(QSqlQueryModel):
                 layer_functions.zoomToSelected(layer)
         
         
+        
+                
+    def filterLayer(self):
+        layer = self.getLayer()
+        run = self.getRun()
+        field = self.getRunField()
+        
+        if layer is not None and run is not None and field is not None:
+            layer.setSubsetString("%s = '%s'"%(field,run))
         

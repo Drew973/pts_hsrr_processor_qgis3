@@ -2,6 +2,17 @@
 qsqltable can work with ranges. Won't give any warnings if user sets to something invalid. can use custom delegate and QValidator to solve
 
 
+make resized when making requested table?
+process then updates it.
+should be faster as no need to update indexes and only need to calculate make pieces once.
+
+save dead turples/need to vacuum resized
+"tuples that are deleted or obsoleted by an update are not physically removed from their table;
+ they remain present until a VACUUM is done. Therefore it's necessary to do VACUUM periodically, especially on frequently-updated tables"
+
+
+
+
 want way to:
 	select sec from feature
 	select feature from sec

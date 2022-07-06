@@ -1,0 +1,32 @@
+add row dialog:
+
+
+
+	sec
+	reversed?
+	xsp
+	ch
+	start_sec_ch
+	end_sec_ch
+	
+	
+	
+shortcut to:
+	select on layers. alt 0
+	add row from selected (no dialog). alt 1
+	add row
+	add dummy
+	
+	
+	
+	
+	
+	sets values from selected features on display.
+	
+	
+	
+	
+needing to add dummys is confusing pita.
+
+
+better to use add end run chainage

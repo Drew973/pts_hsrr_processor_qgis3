@@ -51,28 +51,24 @@ class sectionChainageDelegate(QStyledItemDelegate):
 class runChainageDelegate(QStyledItemDelegate):
     
     
-    def __init__(self,model=None,parent=None):
+    def __init__(self,parent=None):
         super().__init__(parent)
-        self.setModel(model)
 
-
-
-    def setModel(self,model):
-        self._readingsModel = model
-        
         
     
     def createEditor(self,parent,option,index):
         w = chainage_widget.chainageWidget(parent=parent)
-        w.setIndex(self._readingsModel.index(0,0))#invalid index.
-        w.setValue(index.data())
+        w.setIndex(index)
+        
+        if isinstance(index.data(),float) or isinstance(index.data(),int):
+            w.setValue(index.data())
+        
         w.valueChanged.connect(lambda value:setData(index,value))
         return w
     
   
     
 def setData(index,value):
-    print('setData()')
     index.model().setData(index,value)
     
     

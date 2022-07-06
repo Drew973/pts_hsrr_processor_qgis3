@@ -15,4 +15,5 @@ pk serial
 );
 
 
-
+alter table hsrr.resized add column rg numrange;
+create index on hsrr.resized(rg);

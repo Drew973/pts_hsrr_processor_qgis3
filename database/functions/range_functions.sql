@@ -24,3 +24,10 @@ create or replace function length(rg numrange)
 	END;
 	$$
 	language plpgsql;
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.to_numrange(a numeric,b numeric) 
+	RETURNS numrange AS $$
+	select numrange(least(a,b),greatest(a,b))
+	$$ language sql immutable;

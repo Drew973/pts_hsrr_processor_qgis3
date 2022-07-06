@@ -65,6 +65,12 @@
              </item>
              <item>
               <widget class="QPushButton" name="lastRunButton">
+               <property name="maximumSize">
+                <size>
+                 <width>40</width>
+                 <height>16777215</height>
+                </size>
+               </property>
                <property name="toolTip">
                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Previous&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                </property>
@@ -74,10 +80,29 @@
               </widget>
              </item>
              <item>
-              <widget class="undoableComboBox" name="runBox"/>
+              <widget class="searchableComboBox" name="runBox">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
              </item>
              <item>
               <widget class="QPushButton" name="nextRunButton">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>40</width>
+                 <height>16777215</height>
+                </size>
+               </property>
                <property name="toolTip">
                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Next&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                </property>
@@ -137,7 +162,7 @@
             </layout>
            </item>
            <item>
-            <widget class="QTableView" name="requested_view">
+            <widget class="coverageView" name="requestedView">
              <property name="alternatingRowColors">
               <bool>true</bool>
              </property>
@@ -158,14 +183,19 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>undoableComboBox</class>
-   <extends>QComboBox</extends>
-   <header>hsrr_processor.widgets.undoableComboBox</header>
-  </customwidget>
-  <customwidget>
    <class>changesView</class>
    <extends>QTableView</extends>
    <header>hsrr_processor.widgets.changesView</header>
+  </customwidget>
+  <customwidget>
+   <class>coverageView</class>
+   <extends>QTableView</extends>
+   <header>hsrr_processor.widgets.coverage_view</header>
+  </customwidget>
+  <customwidget>
+   <class>searchableComboBox</class>
+   <extends>QComboBox</extends>
+   <header>hsrr_processor.widgets.searchable_combo_box</header>
   </customwidget>
  </customwidgets>
  <resources/>

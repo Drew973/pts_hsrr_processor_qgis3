@@ -3,32 +3,31 @@ set search_path to hsrr,public;
 
 CREATE OR REPLACE FUNCTION hsrr.point_to_run_chainage(pt geometry,rn text,dist float=50)-- needs linestrings not multilinestrings
 RETURNS float AS $$	
-		select s_ch+(e_ch-s_ch)*st_lineLocatePoint(vect,pt) from hsrr.readings where run=rn and st_dwithin(vect,pt,dist) order by st_distance(pt,vect);
-$$ LANGUAGE sql;
+		select s_ch+(e_ch-s_ch)*st_lineLocatePoint(vect,pt) from hsrr.readings where run=rn and st_dwithin(vect,pt,dist) order by st_distance(pt,vect) limit 1;
+$$ LANGUAGE sql immutable;
 
 
 CREATE OR REPLACE FUNCTION hsrr.point_to_run_chainage(x float,y float,rn text,dist float=50)-- needs linestrings not multilinestrings
 RETURNS float AS $$	
 	select hsrr.point_to_run_chainage(ST_SetSRID(st_makePoint(x,y),27700),rn,dist)
-$$ LANGUAGE sql;
+$$ LANGUAGE sql immutable;
 
 
-CREATE OR REPLACE FUNCTION hsrr.run_chainage_to_x(ch float,rn text)
-RETURNS float AS $$
-	select st_x(st_lineInterpolatePoint(vect,(ch-s_ch)/(e_ch-s_ch))) from hsrr.readings where run=rn and s_ch<=ch and ch<=e_ch;
-$$ LANGUAGE sql;
+
+--run chainage to point. Where chainage is duplicated returns earlier part of run.
+CREATE OR REPLACE FUNCTION hsrr.run_ch_to_pt_s(ch numeric,rn text)
+RETURNS geometry('Point',27700) AS $$
+	select st_lineInterpolatePoint(vect,(ch-s_ch)/(e_ch-s_ch)) from hsrr.readings where run=rn and hsrr.to_numrange(s_ch,e_ch)@>ch order by e_ch desc limit 1;
+$$ LANGUAGE sql immutable;
 
 
---select run_chainage_to_x(0,'A1M SB LE')
 
-
-CREATE OR REPLACE FUNCTION hsrr.run_chainage_to_y(ch float,rn text)
-RETURNS float AS $$
-	select st_y(st_lineInterpolatePoint(vect,(ch-s_ch)/(e_ch-s_ch))) from hsrr.readings where run=rn and s_ch<=ch and ch<=e_ch;
-$$ LANGUAGE sql;
-
-
---select run_chainage_to_y(0,'A1M SB LE')
+--run chainage to point. Where chainage is duplicated returns later part of run.
+--end of part of run. Gap after
+CREATE OR REPLACE FUNCTION hsrr.run_ch_to_pt_e(ch numeric,rn text)
+RETURNS geometry('Point',27700) AS $$
+	select st_lineInterpolatePoint(vect,(ch-s_ch)/(e_ch-s_ch)) from hsrr.readings where run=rn and hsrr.to_numrange(s_ch,e_ch)@>ch order by s_ch asc limit 1;
+$$ LANGUAGE sql immutable;
 
 
 
@@ -50,17 +49,3 @@ RETURNS geometry AS $$
 $$ LANGUAGE sql;
 
 
-CREATE OR REPLACE FUNCTION hsrr.network_geom(sect text,start_sec_ch float,end_sec_ch float)
-RETURNS geometry AS $$
-	declare
-		sec_len float = (select meas_len from hsrr.network where sec=sect);
-		s float = hsrr.clamp(start_sec_ch/sec_len,0,1);
-		e float = hsrr.clamp(end_sec_ch/sec_len,0,1);
-	begin
-		if s<e then
-			return ST_LineSubstring(geom,s,e) from hsrr.network where sec=sect;
-		else
-			return st_reverse(ST_LineSubstring(geom,e,s)) from hsrr.network where sec=sect;
-		end if;
-	end;
-$$ LANGUAGE plpgsql;

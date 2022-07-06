@@ -1,0 +1,70 @@
+sec_geom,run_geom
+
+
+
+ST_HausdorffDistance(run_geom,sec_geom):
+	furthest distance from nearest point
+	good for spotting slip roads.
+	bad where end of run geom far from correct section (100m intervals...) 
+	measure of maximum rather than average dissimilarity.
+	using bounding boxes will limit maximum distance
+	
+	
+	
+	
+	
+	
+	
+	
+insufficient difference in cost functions for simple filter.
+
+
+	
+	want to fit sequence of linestrings to minimize distance to
+	sequence of geometries(point or 2 point linestring) with possible gaps. can easily split where gap.
+	ie multilinestringM
+	
+		
+	want to:
+		penalise fitting to section miles away
+			
+		prevent same part of route being in multiple sections. ie no overlapping route chainage ranges.
+		reading can be in multiple sections though
+	
+		penalise discontinuities where sections not connected.
+	
+		
+		
+	
+	
+	
+	
+		reward per reading = x-cost function
+		cost = cost_function -x
+	
+	
+		need rules for what part of route can come after other part.
+		
+		
+		chainage at finite intervals can acts as node.
+		node per interval.
+		
+		each node connected to all nodes with higher chainage by dummy.
+		or next node by dummy.
+		
+		
+		
+		each edge has to be from 1st reading within buffer to last reading within buffer
+		
+	
+	
+		can break readings into smaller pieces only fitted to single sec.
+	
+		limited accuracy. 1m more than precise enough.
+		
+		
+		can easily get parts of readings not near network.	
+
+
+		shortest_path?
+			

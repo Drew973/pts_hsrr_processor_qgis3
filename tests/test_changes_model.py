@@ -20,14 +20,24 @@ def testInsertDummy(model):
     model.redo()
 
 
+
 def testSequencialAutofit(model):
     print(model._sequencialScoreAutofit())
+
+
+
+def testSetData(m):
+    i = m.index(0,m.fieldIndex('sec'))
+    m.setData(i,'4720A62/190')
+
 
 
 if __name__ =='__console__':
     db = get_db.getDb()
     m = createChangesModel()
-    print(testInsertDummy(m))
-    m.setRun('M62 NB CL1 J22-J23')
-    testSequencialAutofit(m)
+   # print(testInsertDummy(m))
+    m.setRun('A1 SB RE')
+    #no readings in this run
+    testSetData(m)
+ #   testSequencialAutofit(m)
 

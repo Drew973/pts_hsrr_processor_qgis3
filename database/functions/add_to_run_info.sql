@@ -1,18 +1,18 @@
 set search_path to hsrr,public;
 
 
-CREATE OR REPLACE FUNCTION generate_run_name(prefered text)
+CREATE OR REPLACE FUNCTION hsrr.generate_run_name(prefered text)
 RETURNS text AS $$	
 	DECLARE
 		n int =0;
 	
     BEGIN
 	
-		if not prefered in (select run from run_info) then
+		if not prefered in (select run from hsrr.run_info) then
 			return prefered;
 		end if;
 
-		while prefered||'_'||n in (select run from run_info) loop
+		while prefered||'_'||n in (select run from hsrr.run_info) loop
 			n = n+1;
 		end loop;
 		
@@ -20,8 +20,8 @@ RETURNS text AS $$
 		
 	END;			
 $$ LANGUAGE plpgsql;
+--select (hsrr.generate_run_name('A1 SB RE'))
 
-alter function generate_run_name set search_path to hsrr;
 
 /*
 tries to add to run_info.
