@@ -2,23 +2,25 @@ from hsrr_processor.models import changesModel
 from hsrr_processor.tests import get_db
 
 
+
 def createChangesModel(db=get_db.getDb()):
     m = changesModel.changesModel(db)
     return m
-
+    
+    
 
 def testInsertDummy(model):
-    data ={'sec':'D',
-                 'xsp':None,
-                 'ch':0,
-                 'note':'insert test',
-                 'startSecCh':0,
-                 'endSecCh':0}
+    c = model.rowCount()
+    print(c)
+    model.insertRow(start_run_ch=0)
+    assert model.rowCount()==c+1
     
-    model.insertRow(**data)
     model.undo()
-    model.redo()
+    assert model.rowCount()==c
 
+    model.redo()
+    assert model.rowCount() == c+1
+    
 
 
 def testSequencialAutofit(model):
@@ -27,17 +29,32 @@ def testSequencialAutofit(model):
 
 
 def testSetData(m):
-    i = m.index(0,m.fieldIndex('sec'))
-    m.setData(i,'4720A62/190')
+    
+    ch = 10
+    i = m.index(0,m.fieldIndex('start_run_ch'))
+    origonal = i.data()
+    
+    m.setData(i,ch)
+    assert i.data()==ch
 
+    m.undo()
+    assert i.data()==origonal
+    
+    m.redo()
+    assert i.data()==ch
+
+def testDropRuns(m):
+    m.dropRuns(['M621 EB LE'])
+    m.undo()
 
 
 if __name__ =='__console__':
     db = get_db.getDb()
     m = createChangesModel()
-   # print(testInsertDummy(m))
-    m.setRun('A1 SB RE')
+    m.setRun('M621 EB LE')
+
+    print(testInsertDummy(m))
     #no readings in this run
     testSetData(m)
  #   testSequencialAutofit(m)
-
+    #testDropRuns(m)

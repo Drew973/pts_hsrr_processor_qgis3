@@ -1,15 +1,11 @@
 
-set search_path to hsrr,public;
+DROP TYPE IF EXISTS hsrr.weighted_val cascade;
 
-
-drop type if exists weighted_val cascade;
-
-create type weighted_val as
+CREATE TYPE hsrr.weighted_val as
 (
 val numeric
 ,weight numeric
 );
-
 
 
 --sum(value*weight)/sum(weight)
@@ -22,7 +18,5 @@ RETURNS numeric AS $$
 	END;			
 $$ LANGUAGE plpgsql;	
 
-
-alter function weighted_av(weighted_val[]) set search_path=hsrr,public;
 
 --select weighted_av('{"(0,5)","(10,5)"}'::weighted_val[]);

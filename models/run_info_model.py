@@ -14,6 +14,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from hsrr_processor.models import commands
+
 
 
 
@@ -37,13 +39,40 @@ class runInfoModel(undoableTableModel.undoableTableModel):
         
         
     def dropRuns(self,runs):
-        logger.info('dropRuns(%s)'%(str(runs)))
+        self.undoStack.push(commands.dropRunsCommand(model=self,runs=runs))
+
+
+
+    def _dropRuns(self,runs):
         with self.con() as con:
             cur = con.cursor(cursor_factory=psycopg2.extras.DictCursor)
             cur.execute('delete from hsrr.run_info where run = any(%(runs)s) returning run,file',{'runs':runs})
             res = [dict(r) for r in cur.fetchall()]
         self.select()
         return res
+    
+
+
+
+        
+    #data like [(run,file),...]
+    #returns pk(run) of new row.
+    def _insertRows(self,data):
+        logger.debug('_insertRows:'+str(data))
+        r = []
+        
+        if data:
+            
+                q = 'insert into hsrr.run_info({run,file}) values %s returning run'
+        
+                with self.con() as con:
+                    if con is not None:
+                        cur = con.cursor()            
+                        r = psycopg2.extras.execute_values(cur,q,data,fetch=True)
+                        
+                self.select()#select after commiting changes
+        return r
+
 
 
         

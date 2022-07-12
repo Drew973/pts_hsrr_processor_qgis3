@@ -1,7 +1,6 @@
-set search_path to hsrr,public;
 
 
-create table if not exists resized
+create table if not exists hsrr.resized
 (
 pk serial
 ,sec text
@@ -15,5 +14,5 @@ pk serial
 );
 
 
-alter table hsrr.resized add column rg numrange;
-create index on hsrr.resized(rg);
+
+create index if not exists resized_rg on hsrr.resized(hsrr.to_numrange(s_ch,e_ch,'()'));

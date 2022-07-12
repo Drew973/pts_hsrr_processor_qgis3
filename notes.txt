@@ -2,16 +2,6 @@
 qsqltable can work with ranges. Won't give any warnings if user sets to something invalid. can use custom delegate and QValidator to solve
 
 
-make resized when making requested table?
-process then updates it.
-should be faster as no need to update indexes and only need to calculate make pieces once.
-
-save dead turples/need to vacuum resized
-"tuples that are deleted or obsoleted by an update are not physically removed from their table;
- they remain present until a VACUUM is done. Therefore it's necessary to do VACUUM periodically, especially on frequently-updated tables"
-
-
-
 
 want way to:
 	select sec from feature
@@ -19,6 +9,21 @@ want way to:
 	select ch from feature
 	select feature from ch
 	
+
+
+toDo:
+add virtual field with cost to section_changes. use for background color of tableView.
+highlight cost>20 red
+
+change ch to start_run_ch, e_ch to end_run_ch
+
+find and remove unnecessary files
+check setup database with new test database.
+
+
+
+
+
 
 
 fieldsModel
@@ -102,50 +107,7 @@ know where any changes should be.
 	shortest path problem
 
 
-filtering section_changes:
-	remove where same as last row
-	remove where this improves score.
 
-
-metrics:
-	ST_HausdorffDistance(g1,g1):
-	measure of how similar geometries are.
-	maximum distance from point on g1 to closest point of g2.
-	https://postgis.net/docs/ST_HausdorffDistance.html
-
-
-	mean_vertex_distance(g1,g2)
-	average distance from geom to readings
-	length difference
-
-
-
-overall score:
-distance from network geometry to run_geometry+ penalty for discontinuity + penalty for dummy. dependent on unfitted length.
-
-
-
-topology vs no topology
-
-	less setup
-
-	make_topology function easy enough
-
-
-	need support for forward and reverse
-	topology doesn't have this?
-
-	need way to get route edges
-	
-	possible_changes and possible_edges tables.
-
-	shortest path problem from these.
-	path to link gaps+1st point+last_point?
-	
-	topology designed for this sort of thing
-
-
-	
 
 start node of section not always near run geometry eg roundabouts
 run chainage for section:
@@ -157,30 +119,10 @@ all changes should be at node except where going off network and where readings 
 
 
 
-joining nodes vs adding every nearby node and filtering
-	adding much simpler
-	doesn't require topology extension
-	handling where readings off network?
-	manually?
 
-
-	add nodes then find section linking them?
-
-
-	finding run_chainage from section?
-
-	can pass same section multiple times.
-
-
-array of run_chainages easy to get. 
-
-
-compare all nearby nodes to correct answer?
-	model to filter.
 
 run,chainage,section,reversed,correct section,correct_reversed,metric1,metric2...
 
-metrics for all there rather than filtered.
 
 numeric(precision,scale)
 scale is number of decimal places. could use to round to x meters

@@ -1,7 +1,5 @@
-set search_path to hsrr,public;
 
-
-create table if not exists network
+create table if not exists hsrr.network
     (
     sec text primary key
 	,id serial--needed for pgRouting to make topology.
@@ -10,8 +8,8 @@ create table if not exists network
 	--,buff geometry('polygon',27700)
 	,has_forward bool
 	,has_reverse bool
-	,funct varchar
+	,funct varchar--slip road,main carriageway...use to filter?
     );
 
 
-insert into network(sec) values ('D');
+insert into hsrr.network(sec) values ('D') on CONFLICT DO NOTHING;

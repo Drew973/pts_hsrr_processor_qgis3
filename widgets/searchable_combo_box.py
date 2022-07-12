@@ -33,6 +33,19 @@ class searchableComboBox(QComboBox):
         return self.itemText(self.currentIndex())
     
     
+    
+    def decrease(self):
+        if self.currentIndex()>0:
+            self.setCurrentIndex(self.currentIndex()-1)
+    
+    
+    
+    def increase(self):#
+        if self.currentIndex()+1<=self.count()-1:#last row is count-1.
+            self.setCurrentIndex(self.currentIndex()+1)
+    
+    
+    
 if __name__=='__console__':
     w = searchableComboBox()
     w.insertItems(0,['1','2','3','40','50'])

@@ -11,17 +11,21 @@ from qgis.utils import iface
 
 from hsrr_processor.widgets import dict_dialog,hsrrFieldsWidget,add_row_dialog
 from hsrr_processor.database_dialog.database_dialog import database_dialog
-from hsrr_processor import databaseFunctions
-from hsrr_processor.models import changesModel,run_info_model,network_model,readings_model,coverage_model
+from hsrr_processor.models import run_info_model,network_model,readings_model,coverage_model,drop_runs_command#,changesModel
 from hsrr_processor.hsrr_processor_dockwidget_base import Ui_fitterDockWidgetBase
 
 
+from hsrr_processor.models.routes.main_routes_model import mainRoutesModel
+from hsrr_processor import init_logging
+
+
+from hsrr_processor.database import setup
 
 import logging
 
 
-logFile = os.path.join(os.path.dirname(__file__),'log.txt')                       
-logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG, force=True)
+#logFile = os.path.join(os.path.dirname(__file__),'log.txt')                       
+#logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG, force=True)
 logger = logging.getLogger(__name__)
 
 
@@ -72,8 +76,8 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
          
         self.runBox.currentIndexChanged.connect(self.runChange)
         
-        self.nextRunButton.clicked.connect(self.nextRun)
-        self.lastRunButton.clicked.connect(self.lastRun)
+        self.nextRunButton.clicked.connect(self.runBox.increase)
+        self.lastRunButton.clicked.connect(self.runBox.decrease)
         
 
 
@@ -84,13 +88,13 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
 
 
-    def nextRun(self):
-        self.runBox.setCurrentIndex(self.runBox.currentIndex()+1)
+   # def nextRun(self):
+   #     self.runBox.setCurrentIndex(self.runBox.currentIndex()+1)
 
 
 
-    def lastRun(self):
-        self.runBox.setCurrentIndex(self.runBox.currentIndex()-1)
+  #  def lastRun(self):
+ #       self.runBox.setCurrentIndex(self.runBox.currentIndex()-1)
         
         
 
@@ -137,12 +141,17 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
 
     def connectChangesModel(self,db):
-        self.changesModel = changesModel.changesModel(parent=self,db=db,undoStack=self.undoStack)
+        self.changesModel = mainRoutesModel(parent=self)
+        self.changesModel.setDatabase(db)
+        self.changesModel.setRun(self.readingsModel.run())
+        
+        self.changesModel.setUndoStack(self.undoStack)
+        
         self.changesModel.setNetworkModel(self.networkModel)
         self.changesModel.setReadingsModel(self.readingsModel)
-        self.changesView.setChangesModel(self.changesModel)
-        self.addRowDialog.setRouteModel(self.changesModel)
-
+        self.changesView.setModel(self.changesModel)
+        
+        
 
 
     def initReadingsModel(self):
@@ -159,8 +168,6 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
         self.fw.getWidget('run').fieldChanged.connect(self.readingsModel.setRunField)
         self.readingsModel.setRunField(self.fw.getWidget('run').currentField())
-
-        self.addRowDialog.setReadingsModel(self.readingsModel)
 
 
 
@@ -189,8 +196,15 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
     
         
     def addRow(self):
-        self.addRowDialog.refresh() 
-        self.addRowDialog.show()
+        if self.changesModel is not None:
+            sel = [i.row() for i in self.changesView.selectionModel().selectedRows()]
+            if sel:
+                self.addRowDialog.setIndex(self.changesModel.index(max(sel),self.changesModel.fieldIndex('start_run_ch')))
+            else:
+    #            self.addRowDialog.setIndex(self.changesModel.index(0,self.changesModel.fieldIndex('start_run_ch')))
+                self.addRowDialog.setIndex(self.changesModel.createIndex(0,self.changesModel.fieldIndex('start_run_ch')))
+          #  self.addRowDialog.refresh() 
+            self.addRowDialog.show()
             
     
 
@@ -355,12 +369,15 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         i = msgBox.exec_()
             
         if i==QMessageBox.Yes:
-            with self.connectDialog.get_con() as con:
-                folder = os.path.join(os.path.dirname(__file__),'database')
-                file = os.path.join(folder,'setup.txt')
-                databaseFunctions.runSetupFile(cur=con.cursor(),file=file,printCom=True,recursive=False)
+            
+            r = setup.setupDb(self.connectDialog.get_db())
+            print(r)
+            logger.debug('setup result:%s',r)
+            
+            if r==True:
                 iface.messageBar().pushMessage('fitting tool: prepared database')
-
+            else:
+                iface.messageBar().pushMessage('fitting tool:error preparing database:'+str(r))
 
 
 #for requested view
@@ -376,7 +393,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
     def dropSelectedRuns(self):
         runs = [str(i.data()) for i in self.runsView.selectionModel().selectedRows(0)]
-        self.undoStack.push(commands.dropRunsCommand(runs=runs,runInfoModel=self.runsView.model(),sectionChangesModel=self.changesView.model(),description='drop runs'))
+        self.undoStack.push(drop_runs_command.dropRunsCommand(runs=runs,runInfoModel=self.runsView.model(),readingsModel = self.readingsModel,routeModel=self.changesView.model()))
         
     
 

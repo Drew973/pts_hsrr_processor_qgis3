@@ -143,12 +143,12 @@ class readingsModel(QSqlQueryModel):
 
     def setRun(self,run):
         self._run = run
-        
     
     
-    def getRun(self):
+    
+    
+    def run(self):
         return self._run
-    
     
         
     def setStartChainageField(self,field):
@@ -215,7 +215,7 @@ class readingsModel(QSqlQueryModel):
         sField = self.getStartChainageField()
         eField = self.getEndChainageField()
         layer = self.getLayer()
-        run = self.getRun()
+        run = self.run()
         runField = self.getRunField()
 
         if sField and eField and layer:
@@ -252,7 +252,7 @@ class readingsModel(QSqlQueryModel):
                 
     def filterLayer(self):
         layer = self.getLayer()
-        run = self.getRun()
+        run = self.run()
         field = self.getRunField()
         
         if layer is not None and run is not None and field is not None:

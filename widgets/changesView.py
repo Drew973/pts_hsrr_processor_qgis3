@@ -4,6 +4,13 @@ from PyQt5.QtGui import QKeySequence
 
 
 from hsrr_processor.delegates import sec_delegate,chainage_delegate
+from hsrr_processor.models.changesModel import changesModel
+from hsrr_processor.models.routes.main_routes_model import mainRoutesModel
+
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 
@@ -38,25 +45,30 @@ class changesView(QTableView):
         
         #create delegates
         self.secDelegate = sec_delegate.secDelegate(self)
-        self.startSecChainageDelegate = chainage_delegate.sectionChainageDelegate(parent=self)
-        self.endSecChainageDelegate = chainage_delegate.sectionChainageDelegate(parent=self)
-        self.runChDelegate = chainage_delegate.runChainageDelegate(parent=self)
+        self.chainageDelegate = chainage_delegate.chainageDelegate(parent=self)
 
 
 
-    def setChangesModel(self,model):
-        self.setModel(model)
+    def setModel(self,model):
         
-        for c in model.hiddenColIndexes:
-            self.hideColumn(c)
-      
+        logger.debug('setModel(%s)',model)
+
+        super().setModel(model)
         self.resizeColumnsToContents()
-        
-        self.setItemDelegateForColumn(model.fieldIndex('sec'),self.secDelegate)
-        self.setItemDelegateForColumn(model.fieldIndex('ch'),self.runChDelegate)    
-        self.setItemDelegateForColumn(model.fieldIndex('start_sec_ch'),self.startSecChainageDelegate)
-        self.setItemDelegateForColumn(model.fieldIndex('end_sec_ch'),self.endSecChainageDelegate)
-        self.setItemDelegateForColumn(model.fieldIndex('e_ch'),self.runChDelegate)    
+
+        if isinstance(model,changesModel) or isinstance(model,mainRoutesModel):
+            
+            logger.debug('setModel special')
+            
+            print(model.fieldIndex('pk'))
+            self.hideColumn(model.fieldIndex('pk'))
+            
+            self.setItemDelegateForColumn(model.fieldIndex('sec'),self.secDelegate)
+            
+            self.setItemDelegateForColumn(model.fieldIndex('start_run_ch'),self.chainageDelegate)    
+            self.setItemDelegateForColumn(model.fieldIndex('end_run_ch'),self.chainageDelegate)
+            self.setItemDelegateForColumn(model.fieldIndex('start_sec_ch'),self.chainageDelegate)
+            self.setItemDelegateForColumn(model.fieldIndex('end_sec_ch'),self.chainageDelegate)    
 
 
         
@@ -74,15 +86,7 @@ class changesView(QTableView):
     def selectOnLayers(self):
         self.model().selectOnLayers(self.selectedRows())
     
-        
-        
-    def getNetworkModel(self):
-        return self._networkModel
-        
-    
+
     
     def setNetworkModel(self,model):
-        self._networkModel = model
-        self.secDelegate.setNetworkModel(self._networkModel)
-        self.startSecChainageDelegate.setModel(model)
-        self.endSecChainageDelegate.setModel(model)
+        self.secDelegate.setNetworkModel(model)

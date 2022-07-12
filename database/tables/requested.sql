@@ -1,7 +1,12 @@
-set search_path to hsrr,public;
+
+/*
+table of every requested section.direction/xsp.
+used to view coverage.
+*/
+
 
 create table if not exists hsrr.requested(
-sec varchar references network(sec),
+sec varchar references hsrr.network(sec),
 reversed bool,
 xsp varchar,
 coverage float,

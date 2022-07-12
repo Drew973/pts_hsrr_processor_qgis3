@@ -6,22 +6,21 @@ CREATE OR REPLACE FUNCTION hsrr.refit()
 	--5-10s for all area 12.
 	delete from hsrr.fitted;
 
-	with a as
-	(
+	insert into hsrr.fitted(run,sec,xsp,vect,rl,s_ch,e_ch)
+
+
 	select 
-	r.run,sec,(c.start_sec_ch>c.end_sec_ch) as reversed,c.xsp,vect,rl
+	readings.run,sec,routes.xsp,vect,rl
 
-	,greatest(hsrr.interpolate_2d(r.s_ch,c.ch,start_sec_ch,c.e_ch,end_sec_ch),0) as s
-	,least(hsrr.interpolate_2d(r.e_ch,c.ch,start_sec_ch,c.e_ch,end_sec_ch),hsrr.meas_len(sec)::numeric) as e
+	,greatest(hsrr.interpolate_2d(s_ch,start_run_ch,start_sec_ch,end_run_ch,end_sec_ch),0) as s
+	,least(hsrr.interpolate_2d(e_ch,start_run_ch,start_sec_ch,end_run_ch,end_sec_ch),hsrr.meas_len(sec)::numeric) as e
 
-	from hsrr.section_changes as c inner join hsrr.readings as r on
-	hsrr.to_numrange(r.s_ch,r.e_ch,'[]')&&hsrr.to_numrange(c.ch,c.e_ch)
-	and r.run = c.run
+	from hsrr.routes inner join hsrr.readings on
+	hsrr.to_numrange(s_ch,e_ch,'[]')&&hsrr.to_numrange(start_run_ch,end_run_ch,'()')
+	and routes.run = readings.run
 	and not sec='D'
-	)
 
-	insert into hsrr.fitted(run,sec,reversed,xsp,vect,rl,s_ch,e_ch,rg)
-	select run,sec,reversed,xsp,vect,rl,s,e,numrange(least(s,e),greatest(s,e)) from a
+	
 	$$ language sql;
 
 --select hsrr.refit();

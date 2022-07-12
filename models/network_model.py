@@ -153,6 +153,16 @@ class networkModel(QSqlQueryModel):
 
 
 
+    def measLen(self,sec):
+        r = self.singleLineQuery('select hsrr.meas_len(%(sec)s)',{'sec':sec})
+       
+        if r is not None:
+            return r[0]
+        
+        return -1
+        
+
+
     def setLayer(self,layer):
         self._layer = layer
     

@@ -1,3 +1,5 @@
+/*
+
 --split n into ranges with max length of len. last range may be shorter.
 create or replace function to_ranges(n numeric,len numeric,bounds text='[)') 
 	returns numrange[]
@@ -14,9 +16,10 @@ create or replace function to_ranges(n numeric,len numeric,bounds text='[)')
 		END;
 	$$
 	language plpgsql;
+*/
 
 
-create or replace function length(rg numrange) 
+create or replace function hsrr.length(rg numrange) 
 	returns numeric
 	as $$
 	BEGIN
@@ -27,7 +30,7 @@ create or replace function length(rg numrange)
 
 
 
-CREATE OR REPLACE FUNCTION hsrr.to_numrange(a numeric,b numeric) 
+CREATE OR REPLACE FUNCTION hsrr.to_numrange(a numeric,b numeric,bounds text='[]') 
 	RETURNS numrange AS $$
-	select numrange(least(a,b),greatest(a,b))
+	select numrange(least(a,b),greatest(a,b),bounds)
 	$$ language sql immutable;
