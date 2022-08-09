@@ -1,15 +1,11 @@
 set search_path to hsrr,public;
 
---r=reversed,x=xsp
-CREATE OR REPLACE FUNCTION coverage(sect varchar,r bool,x varchar) 
+CREATE OR REPLACE FUNCTION hsrr.coverage(sect varchar,x text,r bool) 
 RETURNS float AS $$
 Declare
 	should_be int=count(sec) from hsrr.resized where sec=sect and reversed=r and xsp=x;
 	have int=count(sec) from hsrr.resized where sec=sect and reversed=r and xsp=x and not rl is null;
 	BEGIN
-		if r and one_way from network where sec=sect then
-			return Null;
-		end if;
 			
 		if should_be=0 then
 			return null;
@@ -19,7 +15,6 @@ Declare
 		
 	END;			
 $$ LANGUAGE plpgsql;
-
 
 
 --efficient function to recalculate all coverages
@@ -38,25 +33,16 @@ CREATE OR REPLACE FUNCTION hsrr.recalc_coverage()
 	
 	END;			
 $$ LANGUAGE plpgsql;
-						
 
 
-
---sect=section label,r=reversed,x=xsp
-CREATE OR REPLACE FUNCTION recalc_coverage(sect varchar,r bool,x varchar) 
+/*
+recalculate coverage for section,xsp,direction
+*/
+CREATE OR REPLACE FUNCTION hsrr.recalc_coverage(sect text,xs text,rev bool) 
 	RETURNS void AS $$
-	Declare
-		should_have float=(select count(sec) from resized where sec=sect and xsp=x and reversed=r);
-		have float=(select count(sec) from resized where sec=sect and xsp=x and reversed=r and not rl is null);
-		
-	BEGIN
-		if should_have>0 then
-			update hsrr.requested set coverage=100*have/should_have	where sec=sect and reversed=r and xsp=x;
-		else
-			update hsrr.requested set coverage=null	where sec=sect and reversed=r and xsp=x;
-		end if;
-	
-	END;			
-$$ LANGUAGE plpgsql;
+		update hsrr.requested set coverage = hsrr.coverage(sect,xs,rev) where sec=sect and xsp=xs and reversed=rev;
+$$ LANGUAGE sql;
 
-alter function recalc_coverage(sect varchar,r bool,x varchar) set search_path to hsrr,public;
+
+
+select * from hsrr.resized

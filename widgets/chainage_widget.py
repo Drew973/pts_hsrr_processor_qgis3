@@ -49,7 +49,7 @@ class chainageWidget(QDoubleSpinBox):
         self.valueChanged.connect(self.updateMarker)       
         
     
-        self.setSingleStep(0.01)
+        self.setSingleStep(0.001)#1m
         self.setDecimals(3)
         self.updateMarker(self.value())
 
@@ -98,22 +98,16 @@ class chainageWidget(QDoubleSpinBox):
     
     #happens after focusOutEvent
     def setFromPoint(self,point):
-        
-        print('chainageWidget.setFrompoint')
-        
+              
         index = self.getIndex()
         
-        print('index:',index)
         m = index.model()
         
         if m is not None:
-            print('point:',point)
             pt = self.getTransform().transform(point)
             
             v = m.XYToFloat(pt.x(),pt.y(),index)
-            
-            print(v)
-            
+                        
             if isinstance(v,float):
                 self.setValue(v)
             
@@ -150,4 +144,12 @@ class chainageWidget(QDoubleSpinBox):
 #        print('chainage widget.focusOutEvent')
         self.marker.hide()
         super().focusOutEvent(event)
+        
+        
+    def __del__(self):
+        iface.mapCanvas().scene().removeItem(self.marker)
+
+    def deleteLater(self):
+        iface.mapCanvas().scene().removeItem(self.marker)
+        super().deleteLater()
         

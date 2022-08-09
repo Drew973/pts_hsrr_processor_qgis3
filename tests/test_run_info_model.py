@@ -1,23 +1,34 @@
 from hsrr_processor.models import run_info_model
 from hsrr_processor.tests import get_db
-
+from hsrr_processor import init_logging
 
 
 def getModel(db = get_db.getDb()):
-    return run_info_model.runInfoModel(db)
+    return run_info_model.runInfoModel(db=db,parent=None)
 
 
-def testGenerateRunName(m):
-    f = r'C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\hsrr_processor\tests\example_data\A1M NB RE.xls'
-    r = m.generateRunName(f)
-    assert m.generateRunName('a') == 'a'
+#test for _addRuns() and _drop methods
+def test_addRuns(m):
+    fileNames =['a','b','c']
+    c = m.rowCount()
+    r = m._addRuns(fileNames)
     print(r)
+    assert m.rowCount() == c+3
+    
+    print(m._drop(r))#fileNames same as run names
+    assert m.rowCount() == c
 
 
-def testAddRun(m):
-    run ='b'
-    print(m.addRun(run))
+def testAddRuns(m):
+    fileNames = ['a','b','c']
+    m._dropRuns(fileNames)
+    c = m.rowCount()
+    m.addRuns(fileNames)
+    assert m.rowCount() == c+3
+    m.undo()
+    assert m.rowCount()==c
+
 
 m = getModel()
-testGenerateRunName(m)
-testAddRun(m)
+#test_addRuns(m)
+testAddRuns(m)

@@ -9,23 +9,19 @@ from qgis.PyQt.QtCore import pyqtSignal,Qt,QUrl#,QEvent
 from qgis.utils import iface
 
 
-from hsrr_processor.widgets import dict_dialog,hsrrFieldsWidget,add_row_dialog
-from hsrr_processor.database_dialog.database_dialog import database_dialog
-from hsrr_processor.models import run_info_model,network_model,readings_model,coverage_model,drop_runs_command#,changesModel
+from hsrr_processor.widgets import dict_dialog,add_row_dialog,postgres_dialog,hsrr_fields_dialog
+from hsrr_processor.models import run_info_model,network_model,readings_model,coverage_model,commands
 from hsrr_processor.hsrr_processor_dockwidget_base import Ui_fitterDockWidgetBase
 
 
+
 from hsrr_processor.models.routes.main_routes_model import mainRoutesModel
-from hsrr_processor import init_logging
+from hsrr_processor import init_logging#importing this will restart log
 
 
-from hsrr_processor.database import setup
+from hsrr_processor.database import setup,connection
 
 import logging
-
-
-#logFile = os.path.join(os.path.dirname(__file__),'log.txt')                       
-#logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG, force=True)
 logger = logging.getLogger(__name__)
 
 
@@ -47,19 +43,15 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         super(hsrrProcessorDockWidget, self).__init__(parent)
         self.setupUi(self)
     
-        self.connectDialog = database_dialog(self,'hsrrProcessorDb')
+        self.connectDialog = postgres_dialog.postgresDialog(parent=self,testName=connection.testName)
 
         self.undoStack = QUndoStack(self)
-        
-        self.initFw()
-        
-        self.addRowDialog = add_row_dialog.addRowDialog(parent=self)
+                
+        self.addRowDialog = add_row_dialog.addRowDialog(parent=self)#don't want this to be modal. can't click map.
 
-        self.initNetworkModel()
-        self.initReadingsModel()
+        self.setNetworkModel(network_model.networkModel())
+        self.setReadingsModel(readings_model.readingsModel(parent=self))
 
-        self.runsModel = None
-    
         self.setXspDialog = dict_dialog.dictDialog(parent=self)
         w = QComboBox(self.setXspDialog)
         w.addItems(['CL1','CL2','CR1','CR2','LE','RE'])
@@ -69,8 +61,8 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.initRunInfoMenu()
         self.initTopMenu()
     
-        self.connectDialog.accepted.connect(self.connectToDatabase)   
-        self.connectToDatabase(QSqlDatabase(),warning=False)#QSqlDatabase() will return default connection,
+        self.connectDialog.accepted.connect(self.databaseDialogAccepted)
+        self.setDb(connection.getConnection())
 
         self.changesView.undoStack = self.undoStack
          
@@ -79,131 +71,138 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.nextRunButton.clicked.connect(self.runBox.increase)
         self.lastRunButton.clicked.connect(self.runBox.decrease)
         
+        hsrr_fields_dialog.hsrrFieldsDialog(readingsModel=self.readingsModel(),networkModel=self.networkModel(),parent=self).accept()
+        #set fields to dialog defaults without showing it.
+
 
 
     def runChange(self,row):
         run = self.runBox.itemText(row)
-        self.changesView.model().setRun(run)
-        self.readingsModel.setRun(run)
+        self.routesModel().setRun(run)
+        self.changesView.setColumnHidden(self.routesModel().fieldIndex('pk'),True)
+        self.changesView.setColumnHidden(self.routesModel().fieldIndex('reversed'),True)
+        self.changesView.setColumnHidden(self.routesModel().fieldIndex('run'),True)
+
+        #QSqlQueryModel.setQuery() will reset columns and cause view to show all columns.
+        self.readingsModel().setRun(run)
+
+
+    
+    def routesModel(self):
+        return self.changesView.model()
 
 
 
-   # def nextRun(self):
-   #     self.runBox.setCurrentIndex(self.runBox.currentIndex()+1)
+#make new routesModel from db and set to this.
+    def setRoutesDb(self,db):
+        m = mainRoutesModel(parent=self,db=db)
+        m.setUndoStack(self.undoStack)
+        m.setNetworkModel(self.networkModel())
+        m.setReadingsModel(self.readingsModel())
+        self.changesView.setModel(m)
+      
+    
+    
+    def databaseDialogAccepted(self):
+        logger.debug('databaseDialogAccepted')
 
-
-
-  #  def lastRun(self):
- #       self.runBox.setCurrentIndex(self.runBox.currentIndex()-1)
+        test = connection.getTestConnection()
         
         
+        self.setDb(QSqlDatabase())#set to invalid database. important because some models store database.        
+        QSqlDatabase.removeDatabase(connection.name)#will cause crash if anything has this QSqlDatabase as member
 
-    def initFw(self):
-        self.fw = hsrrFieldsWidget.hsrrFieldsWidget(self)
-        self.tabs.insertTab(0,self.fw,'Fields')
-    
-    
-    
-    def connectToDatabase(self,db=None,warning=True):
-        if not db:
-            db = self.connectDialog.get_db()
 
+        db = QSqlDatabase.addDatabase('QPSQL',connection.name)
+        db.setHostName(test.hostName())
+        db.setDatabaseName(test.databaseName())
+        db.setUserName(test.userName())
+        db.setPassword(test.password())
+        self.setDb(db)
+    
+    
+    
+#create models and connect to database.
+#QSqlDatabase() creates invalid database
+#change ui to show if connected.    
+    def setDb(self,db):
+        logger.debug('setDb')
+        
+        #try to open if not already open
         if not db.isOpen():
             db.open()
-            
+
+        
+        #show on ui
         if not db.isOpen():
             self.setWindowTitle('Not connected - HSRR Processer')
             self.fittingMenu.setEnabled(False)
             self.uploadMenu.setEnabled(False)       
             self.prepareAct.setEnabled(False)
-            
-            if warning:
-                iface.messageBar().pushMessage('could not connect to database',duration=6)            
-            
+                
         else:
             self.setWindowTitle('Connected to %s - HSRR Processer'%(db.databaseName()))
-           
             self.uploadMenu.setEnabled(True)            
             self.fittingMenu.setEnabled(True)
             self.prepareAct.setEnabled(True)
        
-        
-        self.connectChangesModel(db)#want runbox.currentTextChanged to trigger setRun.
-        self.connectRunsModel(db)
-        self.connectCoverage(db)
-        
-        self.networkModel.setDb(db)
-        self.readingsModel.setDb(db)
-        
-        self.runChange(self.runBox.currentIndex())
         self.undoStack.clear()
 
+        self.setRoutesDb(db)
+        self.setRunsDb(db)
+        self.setCoverageDb(db)
+        
+        self.networkModel().select()#model queries database(connection.name).
+        
+        self.runChange(self.runBox.currentIndex())#set run to first in dropdown
+
+
+        
+    def readingsModel(self):
+        return self._readingsModel
+        
+        
+        
+    def setReadingsModel(self,model):
+        self._readingsModel = model
+        
         
 
-    def connectChangesModel(self,db):
-        self.changesModel = mainRoutesModel(parent=self)
-        self.changesModel.setDatabase(db)
-        self.changesModel.setRun(self.readingsModel.run())
-        
-        self.changesModel.setUndoStack(self.undoStack)
-        
-        self.changesModel.setNetworkModel(self.networkModel)
-        self.changesModel.setReadingsModel(self.readingsModel)
-        self.changesView.setModel(self.changesModel)
+
+    def setNetworkModel(self,model):
+        self._networkModel = model
+        self.changesView.setNetworkModel(model)
+        self.requestedView.setNetworkModel(model)
         
         
-
-
-    def initReadingsModel(self):
-        self.readingsModel = readings_model.readingsModel(parent=self)
         
-        self.fw.getWidget('s_ch').fieldChanged.connect(self.readingsModel.setStartChainageField)
-        self.readingsModel.setStartChainageField(self.fw.getWidget('s_ch').currentField())
-
-        self.fw.getWidget('e_ch').fieldChanged.connect(self.readingsModel.setEndChainageField)
-        self.readingsModel.setEndChainageField(self.fw.getWidget('e_ch').currentField())
-
-        self.fw.getWidget('readings').layerChanged.connect(self.readingsModel.setLayer)
-        self.readingsModel.setLayer(self.fw.getWidget('readings').currentLayer())
-
-        self.fw.getWidget('run').fieldChanged.connect(self.readingsModel.setRunField)
-        self.readingsModel.setRunField(self.fw.getWidget('run').currentField())
+    def networkModel(self):
+        return self._networkModel
 
 
 
-    def initNetworkModel(self):
-        self.networkModel = network_model.networkModel()
+    def runsModel(self):
+        return self._runsModel
         
-        self.fw.getWidget('label').fieldChanged.connect(self.networkModel.setField)
-        self.networkModel.setField(self.fw.getWidget('label').currentField())
         
-        self.fw.getWidget('network').layerChanged.connect(self.networkModel.setLayer)
-        self.networkModel.setLayer(self.fw.getWidget('network').currentLayer())
         
-      #  self.addRowDialog.setNetworkModel(self.networkModel)
-        self.changesView.setNetworkModel(self.networkModel)
-        self.requestedView.setNetworkModel(self.networkModel)
-
-
-
-    def connectRunsModel(self,db):
-        self.runsModel = run_info_model.runInfoModel(parent=self,db=db,undoStack=self.undoStack)
-        self.runsView.setModel(self.runsModel)
-        self.runBox.setModel(self.runsModel)
+    def setRunsDb(self,db):
+        self._runsModel = run_info_model.runInfoModel(parent=self,db=db)
+        self._runsModel.setUndoStack(self.undoStack)
+        self.runsView.setModel(self._runsModel)
+        self.runBox.setModel(self._runsModel)
         self.runBox.setCurrentIndex(0)
        # self.run_info_view.setItemDelegateForColumn(self.run_info_model.fieldIndex('file'),delegates.readOnlyText())#makes column uneditable
         
     
         
     def addRow(self):
-        if self.changesModel is not None:
+        if self.routesModel() is not None:
             sel = [i.row() for i in self.changesView.selectionModel().selectedRows()]
             if sel:
-                self.addRowDialog.setIndex(self.changesModel.index(max(sel),self.changesModel.fieldIndex('start_run_ch')))
+                self.addRowDialog.setIndex(self.routesModel().index(max(sel),self.routesModel().fieldIndex('end_run_ch')))
             else:
-    #            self.addRowDialog.setIndex(self.changesModel.index(0,self.changesModel.fieldIndex('start_run_ch')))
-                self.addRowDialog.setIndex(self.changesModel.createIndex(0,self.changesModel.fieldIndex('start_run_ch')))
-          #  self.addRowDialog.refresh() 
+                self.addRowDialog.setIndex(self.routesModel().createIndex(0,self.routesModel().fieldIndex('end_run_ch')))
             self.addRowDialog.show()
             
     
@@ -212,15 +211,17 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.topMenu = QMenuBar()
                 
         self.mainWidget.layout().setMenuBar(self.topMenu)
-        #self.layout().setMenuBar(self.top_menu)
-     #   self.layout().addWidget(self.top_menu)
-       
-        databaseMenu = self.topMenu.addMenu('Database')
-        connectAct = databaseMenu.addAction('Connect to database')
-        connectAct.triggered.connect(self.connectDialog.show)
-        self.prepareAct = databaseMenu.addAction('Setup database for hsrr')
-        self.prepareAct.triggered.connect(self.prepareDatabase)     
+
+        settingsMenu = self.topMenu.addMenu('Settings')
         
+        connectAct = settingsMenu.addAction('Connect to database...')
+        connectAct.triggered.connect(self.connectDialog.show)
+        
+        self.prepareAct = settingsMenu.addAction('Setup database for hsrr...')
+        self.prepareAct.triggered.connect(self.prepareDatabase)     
+                
+        setFieldsAct = settingsMenu.addAction('Set Layers and Fields...')
+        setFieldsAct.triggered.connect(self.setFields)        
         
         editMenu = self.topMenu.addMenu("Edit")
         editMenu.addAction(self.undoStack.createUndoAction(self))
@@ -228,7 +229,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
         
         self.uploadMenu = self.topMenu.addMenu('Upload')
-        uploadReadingsAct =  self.uploadMenu.addAction('Upload readings spreadsheet...')
+        uploadReadingsAct =  self.uploadMenu.addAction('Upload readings spreadsheets...')
         uploadReadingsAct.triggered.connect(self.uploadRuns)
         uploadReadingsFolderAct =  self.uploadMenu.addAction('Upload all readings in folder...')
         uploadReadingsFolderAct.triggered.connect(self.uploadFolder)        
@@ -245,9 +246,6 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
         simpleAutofitAct = autofitMenu.addAction('Add all')
         simpleAutofitAct.triggered.connect(self.simpleAutofit)
-     
-        sequencialAutofitAct = autofitMenu.addAction('Sequencial score autofit')
-        sequencialAutofitAct.triggered.connect(self.sequencialScoreAutofit)
         
         
         leastCostAutofitAct = autofitMenu.addAction('Least cost autofit')
@@ -265,31 +263,32 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
         
     def simpleAutofit(self):
-        m = self.changesView.model()
-        m.simpleAutofit()
+        self.routesModel().simpleAutofit()
         
-
-
-    def sequencialScoreAutofit(self):
-        m = self.changesView.model()
-        m.sequencialScoreAutofit()
-
 
 
     def leastCostAutofit(self):
-        self.changesView.model().leastCostAutofit()   
+        self.routesModel().leastCostAutofit()
+        
         
 
     def filterReadingsLayer(self):
-        self.readingsModel.filterLayer()    
+        self.readingsModel().filterLayer()    
 
 
 
     def setXsp(self):
-        self.undoStack.push(self.changesView.model().setXspCommand(self.setXspDialog['xsp']))
+        xsp = self.setXspDialog['xsp']
+        self.routesModel().setXsp(xsp)
             
     
     
+    #triggered by setFieldsAct
+    def setFields(self):
+        hsrr_fields_dialog.hsrrFieldsDialog(readingsModel=self.readingsModel(),networkModel=self.networkModel(),parent=self).exec_()
+        #dialog sets model layers&fields
+    
+
     def currentRun(self,message=True):      
         if self.runBox.currentText():
            return self.runBox.currentText()
@@ -319,21 +318,22 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
 
     def uploadRuns(self):
-        if not self.runsModel is None:
+        if not self.runsModel() is None:
             files = QFileDialog.getOpenFileNames(caption='Upload readings', filter='*'+'.xls'+';;*')[0]#pyqt5
             files = [os.path.normpath(f) for f in files]
             if files:
-                 self.runsModel.uploadSpreadsheets(files)
+                self.undoStack.push(commands.uploadRunsCommand(files=files,readingsModel=self.readingsModel(),runInfoModel=self.runsModel()))
             
             
             
     def uploadFolder(self):
-        if not self.runsModel is None:
+        if not self.runsModel() is None:
             folder = QFileDialog.getExistingDirectory(caption='upload all .xls in directory')#pyqt5
             if folder:
                 files = filterFiles(folder,'.xls')
                 if files:
-                    self.runsModel.uploadSpreadsheets(files)
+                    self.undoStack.push(commands.uploadRunsCommand(files=files,readingsModel=self.readingsModel(),runInfoModel=self.runsModel()))
+
          
             
         
@@ -343,7 +343,7 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
         
 
-    def connectCoverage(self,db):
+    def setCoverageDb(self,db):
         self.requestedModel = coverage_model.coverageModel(db=db,parent=self)
         self.requestedView.setModel(self.requestedModel)
         self.requestedView.setColumnHidden(self.requestedModel.fieldIndex("pk"), True)#hide pk column
@@ -362,16 +362,17 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
 
         
     def prepareDatabase(self):
-        msgBox = QMessageBox();
-        msgBox.setInformativeText("Perform first time setup for database?");
-        msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No);
-        msgBox.setDefaultButton(QMessageBox.No);
+        msgBox = QMessageBox()
+        msgBox.setInformativeText("Perform first time setup for database?")
+        msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msgBox.setDefaultButton(QMessageBox.No)
         i = msgBox.exec_()
             
         if i==QMessageBox.Yes:
             
-            r = setup.setupDb(self.connectDialog.get_db())
-            print(r)
+            db = connection.getConnection()
+            r = setup.setupDb(db)
+           
             logger.debug('setup result:%s',r)
             
             if r==True:
@@ -380,12 +381,12 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
                 iface.messageBar().pushMessage('fitting tool:error preparing database:'+str(r))
 
 
+
 #for requested view
     def initRunInfoMenu(self):
         self.runInfoMenu = QMenu(self)
-        dropRunAct = self.runInfoMenu.addAction('drop run')
+        dropRunAct = self.runInfoMenu.addAction('Drop selected runs')
         dropRunAct.triggered.connect(self.dropSelectedRuns)# selectedRows(0) returns column 0 (sec)
-
         self.runsView.setContextMenuPolicy(Qt.CustomContextMenu);
         self.runsView.customContextMenuRequested.connect(lambda pt:self.runInfoMenu.exec_(self.mapToGlobal(pt)))
         
@@ -393,9 +394,11 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         
     def dropSelectedRuns(self):
         runs = [str(i.data()) for i in self.runsView.selectionModel().selectedRows(0)]
-        self.undoStack.push(drop_runs_command.dropRunsCommand(runs=runs,runInfoModel=self.runsView.model(),readingsModel = self.readingsModel,routeModel=self.changesView.model()))
+        self.undoStack.push(commands.combinedDropRunsCommand(runs=runs,routeModel=self.routesModel(),readingsModel=self.readingsModel(),runInfoModel=self.runsModel()))
         
-    
+    #runs,routeModel,readingsModel,runInfoModel
+
+
 
 #for requested view
    # def initRequestedMenu(self):

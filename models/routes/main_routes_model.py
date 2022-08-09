@@ -19,12 +19,11 @@ from qgis.core import QgsCoordinateReferenceSystem
 
 
 class mainRoutesModel(undoableRoutesModel):
-    
-    
-    
-    def __init__(self,parent=None):
-        super().__init__(parent)
+       
+    def __init__(self,db,parent=None):
+        super().__init__(db=db,parent=parent)
         self.setNetworkModel(None)
+        self.setReadingsModel(None)
         
         
         
@@ -36,7 +35,7 @@ class mainRoutesModel(undoableRoutesModel):
     def readingsModel(self):
         return self._readingsModel
         
-    #
+    
     
     def setNetworkModel(self,model):
         self._networkModel = model
@@ -47,15 +46,27 @@ class mainRoutesModel(undoableRoutesModel):
         return self._networkModel
         
     
+    
+    def sec(self,row):
+        return self.index(row,self.fieldIndex('sec')).data()
+
+
+
+    def sectionLabels(self,rows):
+        return [self.sec(r) for r in rows]
+    
+    
+    
     def getCrs(self):
         return QgsCoordinateReferenceSystem(27700)
+
 
 
     def XYToFloat(self,x,y,index):
         c = index.column()
     
         if c == self.fieldIndex('start_sec_ch') or c == self.fieldIndex('end_sec_ch'):
-            return self._networkModel.XYToChainage(x,y,self.sectionLabel(index))#x,y,sec
+            return self.networkModel().XYToSecCh(x,y,self.sec(index.row()))#x,y,sec
     
         if c == self.fieldIndex('start_run_ch') or c == self.fieldIndex('end_run_ch'):
             return self.readingsModel().XYToChainage(x,y)
@@ -68,7 +79,7 @@ class mainRoutesModel(undoableRoutesModel):
         c = index.column()
     
         if c == self.fieldIndex('start_sec_ch') or c == self.fieldIndex('end_sec_ch'):
-            return self._networkModel.chainageToXY(value,self.sectionLabel(index))#x,y,sec
+            return self.networkModel().secChToXY(ch=value,sec=self.sec(index.row()))
         
         if c==self.fieldIndex('start_run_ch'):
             return self.readingsModel().chainageToXY(value,True)
@@ -97,7 +108,7 @@ class mainRoutesModel(undoableRoutesModel):
         
         if c==self.fieldIndex('start_sec_ch') or c==self.fieldIndex('end_sec_ch'):
             sec = index.sibling(index.row(),self.fieldIndex('sec')).data()
-            return self.networkModel().measLen(sec)
+            return self.networkModel().secLength(sec)
         
         return 0
         #add sec length here.
@@ -113,6 +124,7 @@ class mainRoutesModel(undoableRoutesModel):
     
 
     def selectOnLayers(self,rows):        
-        self._networkModel.selectSectionsOnlayer(self.sectionLabels(rows))
+        self.networkModel().selectSectionsOnlayer(self.sectionLabels(rows))
         self.readingsModel().selectOnLayer(self.runChainages(rows))
-        layer_functions.zoomToFeatures(self._networkModel.selectedFeatures()+self.readingsModel().selectedFeatures())
+        layer_functions.zoomToSelectedMultilayer([self.networkModel().layer(),self.readingsModel().layer()])
+            

@@ -16,12 +16,13 @@ import json
 import os
 import hsrr_processor
 
+from hsrr_processor.database import connection
+
 
 def getDb():
 
     pluginFolder = os.path.dirname(os.path.dirname(hsrr_processor.__file__))
     configFile = os.path.join(pluginFolder,'hsrr_test_db.json')
-
 
 
     if not os.path.exists(configFile):
@@ -31,10 +32,8 @@ def getDb():
     with open(configFile,'r') as f:
         details = json.load(f)
     
-    
-    #m = changesModel.changesModel()
-    
-    db = QSqlDatabase.addDatabase("QPSQL")
+        
+    db = QSqlDatabase.addDatabase("QPSQL",connection.name)
     db.setHostName(details['host'])
     db.setDatabaseName(details['database'])
     db.setUserName(details['user'])

@@ -1,4 +1,3 @@
-set search_path to hsrr,public;
 
 
 create table if not exists hsrr.routes
@@ -8,11 +7,11 @@ pk serial primary key
 ,sec text references hsrr.network(sec) on update cascade default 'D' --'D' where run goes off network
 ,reversed bool generated always as (start_sec_ch>end_sec_ch) STORED
 ,xsp text
-,start_run_ch numeric default 0--route chainage in km
-,end_run_ch numeric default 0--route chainage in km where leaves section
+,start_run_ch numeric(7,3) default 0--route chainage in km
+,end_run_ch numeric(7,3) default 0--route chainage in km where leaves section
 ,note text
-,start_sec_ch numeric default 0
-,end_sec_ch numeric default 0
+,start_sec_ch numeric(7,3) default 0
+,end_sec_ch numeric(7,3) default 0
 );
 
 

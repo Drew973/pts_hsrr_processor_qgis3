@@ -1,24 +1,77 @@
-sec_geom,run_geom
+
+assume run_geom unique.
+map run_geom to network geom.
+
+
+represent readings as trajectory?
+simpler to get run chainage.
+need to store rl as well as run chainages.
+
+could think of run_ch as 3rd dimension?
+
+
+nodes as pairs of run_pt,topo_pt
+
+unique on (run_pt,topo_pt)
+nodes can share run_pt.
+and topo_pt.
+
+
+assume all readings within distance of network are fitted? doesn't work for networks with gaps in slips
+
+for given run_pt can have many topo_pt. 1 per topo section.
+
+
+edges as pairs of linestrings run_geom,topo_geom.
+some topology rules. can only go from section to connected section or dummy.
+
+
+nodes for each nearby section.
+join nodes where network geom intersects both nodes
 
 
 
-ST_HausdorffDistance(run_geom,sec_geom):
-	furthest distance from nearest point
-	good for spotting slip roads.
-	bad where end of run geom far from correct section (100m intervals...) 
-	measure of maximum rather than average dissimilarity.
-	using bounding boxes will limit maximum distance
-	
-	
-	
-	
-	
-	
-	
-	
-insufficient difference in cost functions for simple filter.
 
 
+
+better way to find edges?
+
+	sometimes closest run chainage to end of last correct section > closest run chainage of start of next correct section.
+	results in correct path not being found as requires dummys.
+	
+	link route_nodes to following points with section.
+
+	link to previous route_node within small distance approx 5m.
+		end up with overlaps...
+		
+		
+
+
+
+	find points where section could change.
+	near section end,
+	left network completely
+	change of direction
+	,
+	
+
+	using topology would help with this.
+	and with splitting roundabouts.
+	
+	
+	
+	
+	
+	could probably just use shortest path.
+	st_dwithin possibly better than using round ended buffer. same results and simpler.
+
+
+	
+
+	
+
+
+	
 	
 	want to fit sequence of linestrings to minimize distance to
 	sequence of geometries(point or 2 point linestring) with possible gaps. can easily split where gap.
@@ -36,6 +89,10 @@ insufficient difference in cost functions for simple filter.
 		
 		
 	
+	
+		can assume change of section is near end of at least 1 network geometry.
+	
+		for roundabouts snap to other section end?
 	
 	
 	

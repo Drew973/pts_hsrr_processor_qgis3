@@ -4,7 +4,6 @@ from PyQt5.QtGui import QKeySequence
 
 
 from hsrr_processor.delegates import sec_delegate,chainage_delegate
-from hsrr_processor.models.changesModel import changesModel
 from hsrr_processor.models.routes.main_routes_model import mainRoutesModel
 
 
@@ -56,7 +55,7 @@ class changesView(QTableView):
         super().setModel(model)
         self.resizeColumnsToContents()
 
-        if isinstance(model,changesModel) or isinstance(model,mainRoutesModel):
+        if isinstance(model,mainRoutesModel):
             
             logger.debug('setModel special')
             

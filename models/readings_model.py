@@ -5,60 +5,62 @@ Created on Mon May 16 12:59:43 2022
 @author: Drew.Bennett
 
 
-
-unused.
-
-toDo: merge with readingsModel and run_info_model.
-
-
-use this for uploading readings instead of seperate function.
-need ways to get run chainage and to upload readings.
-
-
-
+runs queries on readings table.
+selects things on layer.
 
 """
 
+from PyQt5.QtWidgets import QUndoCommand,QUndoStack
+from PyQt5.QtSql import QSqlQuery#QSqlQueryModel
+
 
 import psycopg2
-from qgis.core import QgsFeatureRequest
-from hsrr_processor.functions import layer_functions
-from PyQt5.QtSql import QSqlQueryModel,QSqlQuery,QSqlDatabase
-
 from qgis.core import QgsCoordinateReferenceSystem
+from hsrr_processor.database import connection
+from hsrr_processor.models import parse_readings
+from hsrr_processor.models import commands,table
+
 
 import logging
 logger = logging.getLogger(__name__)
+import sip
 
-class readingsModel(QSqlQueryModel):
+
+
+class readingsModel:
     
     
     def __init__(self,parent=None):
-        super().__init__(parent)
-        self.setRun(None)
-        self.setDb(QSqlDatabase())
-        
+        #super().__init__(parent)
+        self.setRun(None)        
         self.setStartChainageField(None)
         self.setEndChainageField(None)
         self.setLayer(None)
         self.setRunField(None)
-        
-
-        
-      
-    def setDb(self,db):
-        self._db = db
-        q = QSqlQuery('select 1',db)#required for index().model() to not be None
-        self.setQuery(q)
-        
-       # try:
-       #     self.con = psycopg2.connect(host=db.hostName(),dbname=db.databaseName(),user=db.userName(),password=db.password())   
-       # except:
-        #    self.con = None
+        self.setUndoStack(QUndoStack())
         
         
     def database(self):
-        return self._db
+        return connection.getConnection()
+        
+        
+        
+    def setUndoStack(self,undoStack):
+        self._undoStack = undoStack
+        
+        
+        
+    def undoStack(self):
+        return self._undoStack
+        
+    
+    def undo(self):
+        self.undoStack().undo()
+        
+        
+        
+    def redo(self):
+        self.undoStack().redo()
         
         
         
@@ -68,7 +70,7 @@ class readingsModel(QSqlQueryModel):
     
     
     def con(self):
-        db = self._db
+        db = self.database()
         try:
             return psycopg2.connect(host=db.hostName(),dbname=db.databaseName(),user=db.userName(),password=db.password())    
         except:
@@ -85,7 +87,7 @@ class readingsModel(QSqlQueryModel):
         
         
     def selectedFeatures(self):
-        layer = self.getLayer()
+        layer = self.layer()
         if layer is not None:
             return [f for f in layer.selectedFeatures()]
         return []
@@ -146,54 +148,66 @@ class readingsModel(QSqlQueryModel):
     
     
     
-    
     def run(self):
         return self._run
+
     
         
     def setStartChainageField(self,field):
+        logger.debug('setStartChainageField(%s)',field)
         self._startChainageField = field
         
             
         
-    def getStartChainageField(self):
+    def startChainageField(self):
         return self._startChainageField
     
     
         
     def setEndChainageField(self,field):
+        logger.debug('setEndChainageField(%s)',field)
         self._endChainageField = field
         
 
         
-    def getEndChainageField(self):
+    def endChainageField(self):
         return self._endChainageField
 
 
         
     def setLayer(self,layer):
+        logger.debug('setLayer(%s)',layer)
         self._layer = layer
         
-        
-        
-    def getLayer(self):
-        return self._layer
 
+
+#layer could be deleted after setting. 
+#results in RuntimeError: underlying C/C++ object has been deleted error when trying to use layer
+#might be better to avoid storing layer as attribute...
+    def layer(self):
         
+        if self._layer is None:
+            return None
+        
+        if sip.isdeleted(self._layer):
+            return None
+
+        return self._layer        
 
     def setRunField(self,field):
+        logger.debug('setRunField(%s)',field)
         self._runField = field
 
 
 
-    def getRunField(self):
+    def runField(self):
         return self._runField
         
     
     #returns float or None
     def minSelected(self):
-        field = self.getStartChainageField()
-        layer = self.getLayer()
+        field = self.startChainageField()
+        layer = self.layer()()
         if field and layer:
             vals = [f[field] for f in layer.selectedFeatures()]
             if len(vals)>0:
@@ -202,59 +216,142 @@ class readingsModel(QSqlQueryModel):
     
     #returns float or None
     def maxSelected(self):
-        field = self.getEndChainageField()
-        layer = self.getLayer()
+        field = self.endChainageField()
+        layer = self.layer()
         if field and layer:
             vals = [f[field] for f in layer.selectedFeatures()]
             if len(vals)>0:
                 return max(vals)    
     
+
     
-    
+    #list of (start,end)
     def selectOnLayer(self,chainages):
-        sField = self.getStartChainageField()
-        eField = self.getEndChainageField()
-        layer = self.getLayer()
+        sField = self.startChainageField()
+        eField = self.endChainageField()
+        layer = self.layer()
         run = self.run()
-        runField = self.getRunField()
+        runField = self.runField()
 
-        if sField and eField and layer:
+        if sField and eField and run and runField and layer is not None:
             
-            if run and runField:
-                runFilt = '"{}" = \'{}\' and '.format(runField,run)
+            chTemplate = '("{sField}"<{e} and "{eField}">{s})'.format(sField=sField,e='{e}',eField=eField,s='{s}')
+            chClause = 'or'.join([chTemplate.format(s=s,e=e) for s,e in chainages])            
+            e = '"{runField}"=\'{rn}\' and ({chClause})'.format(runField=runField,rn=run,chClause=chClause)
+            logger.debug(e)
+            layer.selectByExpression(e)
+         
             
-            else:
-                runFilt = ''
-            
-            
-            fids = []
-            r = QgsFeatureRequest()
-            
-            for s,e in chainages:
-                
-                if e is None:
-                    r.setFilterExpression(runFilt+'{eField}>{s}'.format(eField=eField,s=s))#want where ranges overlap
-
-                else:
-                    r.setFilterExpression(runFilt+'"{sField}"<{e} and {eField}>{s}'.format(sField=sField,e=e,eField=eField,s=s))#want where ranges overlap
-                
-                
-                for f in layer.getFeatures(r):
-                    fids.append(f.id())
-            
-            
-            layer.selectByIds(fids)
-            if fids:
-                layer_functions.zoomToSelected(layer)
-        
-        
-        
                 
     def filterLayer(self):
-        layer = self.getLayer()
+        layer = self.layer()
         run = self.run()
-        field = self.getRunField()
+        field = self.runField()
         
         if layer is not None and run is not None and field is not None:
             layer.setSubsetString("%s = '%s'"%(field,run))
         
+        
+        
+    def loadSpreadsheet(self,fileName,run):
+        self.undoStack().push(loadCommand(model=self,fileName=fileName))
+        
+        
+        
+    #load .xls to run and insert into hsrr.readings. Need to insert run into run_info before calling this.
+    def _loadSpreadsheet(self,fileName,run):
+
+        logger.debug('_loadSpreadsheet(%s)'%(fileName))
+
+        with self.con() as con:
+            cur = con.cursor()
+                
+            q = '''
+                insert into hsrr.readings(run,f_line,t,raw_ch,rl,vect,s_ch,e_ch)
+                values(
+                %(run)s
+                ,%(f_line)s
+                ,to_timestamp(replace(%(t)s,' ',''),'dd/mm/yyyyHH24:MI:ss')
+                ,%(raw_ch)s
+                ,%(rl)s
+                ,ST_MakeLine(St_Transform(ST_SetSRID(ST_makePoint(%(start_lon)s,%(start_lat)s),4326),27700),St_Transform(ST_SetSRID(ST_makePoint(%(end_lon)s,%(end_lat)s),4326),27700))	
+                ,%(line)s * 0.1
+                ,%(line)s * 0.1 +0.1
+                )
+            '''
+            psycopg2.extras.execute_batch(cur,q,parse_readings.parseReadings(uri=fileName,run=run))
+            
+            
+            
+    #takes and returns table(run,file)
+    def _addRuns(self,d):
+        
+        runIndex = d.fieldIndex('run')
+        fileIndex=d.fieldIndex('file')
+        for r in d.data:
+            self._loadSpreadsheet(fileName=r[fileIndex],run=r[runIndex])
+            
+        return d
+
+        
+
+    def dropRuns(self,runs):
+        self.undoStack().push(commands.dropRunsCommand(model=self,runs=runs))
+        
+    
+    #list of runs or table with run column
+    def _dropRuns(self,runs):
+        
+        if isinstance(runs,table.table):
+            i = runs.fieldIndex('run')
+            runs = [r[i] for r in runs.data]
+        
+        
+        with self.con() as con:
+            cur = con.cursor()
+            q = 'delete from hsrr.readings where run  = any(%(runs)s) returning pk,run,f_line,t,raw_ch,rl,s_ch,e_ch,st_asText(vect) as vect'
+            cur.execute(q,{'runs':runs})
+            return {'columns':[desc[0] for desc in cur.description],'data':[r for r in cur.fetchall()]}
+    
+    
+    
+    #data like {'columns':[],'data':[()]}
+    #wkt can be inserted into geometry column
+    #data like{'columns':[],'data':[]}
+    def _insert(self,data):
+        logger.debug('insert(%s)',data)
+
+        q = 'insert into hsrr.readings({cols}) values {vals} returning pk'.format(cols=','.join(data['columns']),vals='%s')
+        
+        logger.debug(q)
+        logger.debug('data:%s',data['data'])
+
+        with self.con() as c:
+            if c is not None:
+                cur = c.cursor()
+                results = psycopg2.extras.execute_values(cur,q,data['data'],fetch=True)
+            
+        #return {'columns':['run'],'data':r}
+        return [r[0] for r in results]    
+        
+        
+        
+
+class loadCommand(QUndoCommand):
+    
+    def __init__(self,model,fileName,run,parent=None,description = 'upload run'):
+        super().__init__(description,parent)
+        self.model = model
+        self.fileName = fileName
+        self.run = run
+        
+
+    def redo(self):
+        self.model._loadSpreadsheet(fileName=self.fileName,run=self.run)#{'columns':['run'],'data':[(run)]}
+        #generate_run_name is stable. will give same result here.
+   
+
+
+    def undo(self):
+        self.model._dropRuns([self.run])
+

@@ -8,8 +8,8 @@ from hsrr_processor.models.routes.main_routes_model import mainRoutesModel
 def testInit():
     db = get_db.getDb()
 
-    m = mainRoutesModel()
-    m.setDatabase(db)
+    m = mainRoutesModel(db)
+   # m.setDatabase(db)
     return m
     
     
@@ -22,9 +22,17 @@ def test_insert(m):
     data = m._drop(pks)
     print(data)
     
-    
    
-v = QTableView()
-v.setModel(m)
-v.show()
-
+def testDropRuns(model):
+    run = 'M621 EB CL2'
+    model.setRun(run)
+    c = model.rowCount()
+    model.dropRuns([run])
+    assert model.rowCount()==0#should have no rows
+    model.undo()
+    assert model.rowCount()==c#should have origonal rowCount
+    
+    
+    
+m = testInit()
+testDropRuns(m)

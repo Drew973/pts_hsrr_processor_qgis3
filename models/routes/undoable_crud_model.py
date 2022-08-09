@@ -107,17 +107,17 @@ class undoableCrudModel(QObject):
   
     
     def update(self,pk,col,value,description=''):
-        self.undoStack().push(updateCommand(model=self,col=col,pk=pk,value=value))
+        self.undoStack().push(updateCommand(model=self,col=col,pk=pk,value=value,description=description))
 
     
     
     def insert(self,data,description=''):
-        self.undoStack().push(insertCommand(model=self,data=data))
+        self.undoStack().push(insertCommand(model=self,data=data,description=description))
     
     
     
     def drop(self,pks,description=''):
-        self.undoStack().push(dropCommand(model=self,pks=pks))
+        self.undoStack().push(dropCommand(model=self,pks=pks,description=description))
 
     
     

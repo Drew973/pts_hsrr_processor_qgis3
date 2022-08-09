@@ -8,6 +8,10 @@ from PyQt5.QtCore import QModelIndex
 
 
 
+'''
+dialog to add row to routesModel.
+'''
+
 class addRowDialog(QDialog):
     
     def __init__(self,parent=None):
@@ -28,28 +32,10 @@ class addRowDialog(QDialog):
         self.buttons.accepted.connect(self.accept)
         
         
-#refresh min and max of spinbox and set chainage to lowest selected.
- #  def refresh(self):
-#        m = self.model()
-   #     if m is not None:
-    #        v = m.minSelected()
-     #       if v is not None:
-     #           self.runChWidget.setValue(v)
-    
-    
-     #   self.runChWidget.setIndex(self.runChWidget.getIndex())
-
-
-
-#    def setModel(self,model):
-        #if model is not None:
-    #        self.runChWidget.setIndex(model.index(0,model.fieldIndex('start_run_ch')))
-       
         
     def setIndex(self,index):
         logger.debug('setIndex(%s)',index)
         self.runChWidget.setIndex(index)
-
 
 
     def model(self):

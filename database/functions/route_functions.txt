@@ -1,9 +1,0 @@
---remove from routes where run=rn and funct=road_funct
-
-CREATE OR REPLACE FUNCTION hsrr.remove_by_funct(rn varchar,road_funct varchar) 
-RETURNS void AS $$
-        BEGIN	
-			delete from hsrr.routes as r where run= rn and (select funct from hsrr.network as n where n.sec=r.sec)=road_funct;
-			return;
-		END;			
-$$ LANGUAGE plpgsql;

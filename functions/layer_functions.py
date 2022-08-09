@@ -1,5 +1,7 @@
 from qgis.utils import iface
-#from qgis.core import QgsRectangle#  QgsFeatureRequest
+
+
+from qgis.core import QgsRectangle
 
 #layer=qgislayer
 #section=string,
@@ -36,10 +38,11 @@ def selectOnNetwork(layer,labelField,sections):
 
 '''
 zoom canvas to extents of list of features(from any layer)
+need same crs.
 
 '''
 def zoomToFeatures(features,scale=1.1,canvas=iface.mapCanvas()):
-
+    print(features)
     e = None
 
     for f in features:
@@ -52,4 +55,21 @@ def zoomToFeatures(features,scale=1.1,canvas=iface.mapCanvas()):
     if e is not None:
         e.scale(scale)
         iface.mapCanvas().setExtent(e)
+        iface.mapCanvas().refresh()
+        
+
+#test with QgsProject.instance().mapLayers().values()
+#zoom to selected features on multiple layers.
+#zooms out slightly (scale)
+def zoomToSelectedMultilayer(layers,scale=1.1):
+    layers = [layer for layer in layers if hasattr(layer,'boundingBoxOfSelected')]
+    
+    extent = QgsRectangle()
+    
+    for layer in layers:
+        extent.combineExtentWith(layer.boundingBoxOfSelected())#in layer crs or project crs?
+        
+    if extent.area()>0:
+        extent.scale(scale)
+        iface.mapCanvas().setExtent(extent)
         iface.mapCanvas().refresh()
