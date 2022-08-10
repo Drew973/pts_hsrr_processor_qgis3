@@ -1,2 +1,3 @@
-# ignore all .pyc
-*.pycgit status
+*.log
+*.pyc
+**/__pycache__

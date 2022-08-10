@@ -31,6 +31,10 @@ join nodes where network geom intersects both nodes
 
 
 
+densify run_geom ie points every x m.
+then 1-1 relationship
+
+
 
 
 
@@ -41,13 +45,8 @@ better way to find edges?
 	
 	link route_nodes to following points with section.
 
-	link to previous route_node within small distance approx 5m.
-		end up with overlaps...
 		
 		
-
-
-
 	find points where section could change.
 	near section end,
 	left network completely
@@ -59,17 +58,17 @@ better way to find edges?
 	and with splitting roundabouts.
 	
 	
+	finding connections to route nodes:
+	if node is topology node then topo edge starting here. 
+	
+	else where topo_geom nearby.
+	
+	
 	
 	
 	
 	could probably just use shortest path.
 	st_dwithin possibly better than using round ended buffer. same results and simpler.
-
-
-	
-
-	
-
 
 	
 	
@@ -82,46 +81,15 @@ better way to find edges?
 		penalise fitting to section miles away
 			
 		prevent same part of route being in multiple sections. ie no overlapping route chainage ranges.
-		reading can be in multiple sections though
-	
-		penalise discontinuities where sections not connected.
-	
-		
-		
-	
-	
-		can assume change of section is near end of at least 1 network geometry.
-	
-		for roundabouts snap to other section end?
-	
-	
-	
-		reward per reading = x-cost function
-		cost = cost_function -x
-	
-	
+		can break readings into smaller pieces only fitted to single sec?
+
 		need rules for what part of route can come after other part.
-		
-		
-		chainage at finite intervals can acts as node.
-		node per interval.
-		
-		each node connected to all nodes with higher chainage by dummy.
-		or next node by dummy.
+		each part connected to previous or dummy.
 		
 		
 		
-		each edge has to be from 1st reading within buffer to last reading within buffer
 		
-	
-	
-		can break readings into smaller pieces only fitted to single sec.
 	
 		limited accuracy. 1m more than precise enough.
 		
-		
 		can easily get parts of readings not near network.	
-
-
-		shortest_path?
-			

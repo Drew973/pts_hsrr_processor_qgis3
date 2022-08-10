@@ -157,7 +157,7 @@ class undoableRoutesModel(QSqlTableModel,undoableCrudModel):
     def setData(self, index, value, role=Qt.EditRole):
         logger.debug('setData')
         
-        if role==Qt.EditRole and self.useSetDataCommand:
+        if role==Qt.EditRole and self.useSetDataCommand and value != index.data():
             self.update(pk=self.pk(index.row()),col=self.columnName(index.column()),value=value,description='set data')
             return True
         else:
@@ -204,9 +204,21 @@ class undoableRoutesModel(QSqlTableModel,undoableCrudModel):
         self.undoStack().push(autofitCommand(model=self,run=self.run(),method=self._leastCostAutofit,description = 'least cost autofit'))
     
     
+    def leastCostTopoAutofit(self):
+        self.undoStack().push(autofitCommand(model=self,run=self.run(),method=self._leastCostTopoAutofit,description = 'least cost topology autofit'))
+
+        
+        
     
     def _leastCostAutofit(self,run):
         q = 'select pk from hsrr.least_cost_autofit(%(run)s)'
+        r = self.runQuery(q,{'run':run})
+        self.select()
+        return r
+ 
+    
+    def _leastCostTopoAutofit(self,run):
+        q = 'select pk from hsrr.least_cost_topology_autofit(%(run)s)'
         r = self.runQuery(q,{'run':run})
         self.select()
         return r

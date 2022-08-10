@@ -251,6 +251,9 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         leastCostAutofitAct = autofitMenu.addAction('Least cost autofit')
         leastCostAutofitAct.triggered.connect(self.leastCostAutofit)  
         
+        leastCostTopoAutofitAct = autofitMenu.addAction('Least cost with topology')
+        leastCostTopoAutofitAct.triggered.connect(self.leastCostTopoAutofit)  
+        
         
         #help menu
         helpMenu = self.topMenu.addMenu('Help')
@@ -276,6 +279,10 @@ class hsrrProcessorDockWidget(QDockWidget, Ui_fitterDockWidgetBase):
         self.readingsModel().filterLayer()    
 
 
+    def leastCostTopoAutofit(self):
+        self.routesModel().leastCostTopoAutofit()
+
+        
 
     def setXsp(self):
         xsp = self.setXspDialog['xsp']

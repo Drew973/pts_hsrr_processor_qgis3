@@ -3,9 +3,9 @@ RETURNS table (pk int) AS $$
 	select hsrr.recalc_r_nodes(rn);
 	select hsrr.recalc_r_edges(rn);
 	
-	insert into hsrr.routes(sec,start_sec_ch,end_sec_ch,start_run_ch,end_run_ch)
+	insert into hsrr.routes(run,sec,start_sec_ch,end_sec_ch,start_run_ch,end_run_ch)
 
-	select sec
+	select rn,sec
 	,meas_len*st_lineLocatePoint(geom,st_startPoint(topo_geom)) as start_sec_ch
 	,meas_len*st_lineLocatePoint(geom,st_endPoint(topo_geom)) as end_sec_ch
 	,(select run_ch from hsrr.r_nodes where pk=source ) as start_run_ch

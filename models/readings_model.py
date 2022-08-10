@@ -17,7 +17,7 @@ from PyQt5.QtSql import QSqlQuery#QSqlQueryModel
 import psycopg2
 from qgis.core import QgsCoordinateReferenceSystem
 from hsrr_processor.database import connection
-from hsrr_processor.models import parse_readings
+from hsrr_processor.models import upload_readings
 from hsrr_processor.models import commands,table
 
 
@@ -260,26 +260,8 @@ class readingsModel:
         
     #load .xls to run and insert into hsrr.readings. Need to insert run into run_info before calling this.
     def _loadSpreadsheet(self,fileName,run):
-
         logger.debug('_loadSpreadsheet(%s)'%(fileName))
-
-        with self.con() as con:
-            cur = con.cursor()
-                
-            q = '''
-                insert into hsrr.readings(run,f_line,t,raw_ch,rl,vect,s_ch,e_ch)
-                values(
-                %(run)s
-                ,%(f_line)s
-                ,to_timestamp(replace(%(t)s,' ',''),'dd/mm/yyyyHH24:MI:ss')
-                ,%(raw_ch)s
-                ,%(rl)s
-                ,ST_MakeLine(St_Transform(ST_SetSRID(ST_makePoint(%(start_lon)s,%(start_lat)s),4326),27700),St_Transform(ST_SetSRID(ST_makePoint(%(end_lon)s,%(end_lat)s),4326),27700))	
-                ,%(line)s * 0.1
-                ,%(line)s * 0.1 +0.1
-                )
-            '''
-            psycopg2.extras.execute_batch(cur,q,parse_readings.parseReadings(uri=fileName,run=run))
+        upload_readings.loadSpreadSheet(db=self.database(),spreadsheet=fileName,runName=run)
             
             
             

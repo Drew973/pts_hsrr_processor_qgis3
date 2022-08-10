@@ -8,8 +8,8 @@ pk serial primary key
 ,raw_ch numeric--machine chainage from file. start or end?
 ,rl numeric--reading
 ,vect geometry('Linestring',27700)
-,s_ch numeric--chainage of start in km
-,e_ch numeric--chainage of end in km
+,s_ch numeric(7,1)--chainage of start in km
+,e_ch numeric(7,1)--chainage of end in km
 );
 
 create index on hsrr.readings using gist(vect);

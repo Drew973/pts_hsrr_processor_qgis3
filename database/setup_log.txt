@@ -1,0 +1,1059 @@
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\init_db.sqlCREATE SCHEMA if not exists hsrr;
+create extension if not exists postgis;script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/range_functions.sql/*
+
+--split n into ranges with max length of len. last range may be shorter.
+create or replace function to_ranges(n numeric,len numeric,bounds text='[)') 
+	returns numrange[]
+	as $$
+	BEGIN
+		return 
+			array(select numrange(s::numeric,e::numeric,bounds)
+				from
+				(select s,coalesce(lead(s) over (order by s),n) as e from 
+					(select generate_series(0.0,n,100) as s) a
+				) b
+				where s!=e
+			);
+		END;
+	$$
+	language plpgsql;
+*/
+
+
+create or replace function hsrr.length(rg numrange) 
+	returns numeric
+	as $$
+	BEGIN
+		return upper(rg)-lower(rg);
+	END;
+	$$
+	language plpgsql;
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.to_numrange(a numeric,b numeric,bounds text='[]') 
+	RETURNS numrange AS $$
+	select numrange(least(a,b),greatest(a,b),bounds)
+	$$ language sql immutable;script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\tables/run_info.sql
+create table if not exists hsrr.run_info(
+run varchar primary key,
+file varchar unique --don't allow more than 1 run/file
+)
+
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\tables/network.sql
+create table if not exists hsrr.network
+    (
+    sec text primary key
+	,id serial--needed for pgRouting to make topology.
+	,geom geometry('linestring',27700)
+	,meas_len float
+	,buffer geometry('polygon',27700)
+	,has_forward bool
+	,has_reverse bool
+	,funct varchar--slip road,main carriageway...use to filter?
+    );
+
+
+insert into hsrr.network(sec) values ('D') on CONFLICT DO NOTHING;
+create index if not exists buffer_index on hsrr.network using gist(buffer);
+create index if not exists geom_index on hsrr.network using gist(geom);script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\tables/readings.sql
+create table if not exists hsrr.readings
+(
+pk serial primary key
+,run text references hsrr.run_info(run) on update cascade on delete cascade
+,f_line int--which line of file data came from
+,t timestamptz
+,raw_ch numeric--machine chainage from file. start or end?
+,rl numeric--reading
+,vect geometry('Linestring',27700)
+,s_ch numeric(7,1)--chainage of start in km
+,e_ch numeric(7,1)--chainage of end in km
+);
+
+create index on hsrr.readings using gist(vect);
+create index on hsrr.readings(run);
+create index on hsrr.readings(hsrr.to_numrange(s_ch,e_ch,'[]'));
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\tables/routes.sql
+
+create table if not exists hsrr.routes
+(
+pk serial primary key
+,run text references hsrr.run_info(run) on update cascade
+,sec text references hsrr.network(sec) on update cascade default 'D' --'D' where run goes off network
+,reversed bool generated always as (start_sec_ch>end_sec_ch) STORED
+,xsp text
+,start_run_ch numeric(7,3) default 0--route chainage in km
+,end_run_ch numeric(7,3) default 0--route chainage in km where leaves section
+,note text
+,start_sec_ch numeric(7,3) default 0
+,end_sec_ch numeric(7,3) default 0
+);
+
+
+create index on hsrr.routes(sec);
+create index on hsrr.routes(reversed);
+create index on hsrr.routes(xsp);
+create index on hsrr.routes(run);
+create index on hsrr.routes(hsrr.to_numrange(start_run_ch,end_run_ch,'[]'));script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\tables/fitted.sql
+
+create table if not exists hsrr.fitted
+(
+pk serial
+,run text--foreign key? unnecesary as generated from routes and routes has fk on run.
+,sec text--foreign key? unnecesary as generated from routes and routes has fk on sec.
+,reversed bool generated always as (s_ch>e_ch) STORED
+,xsp text
+,vect geometry('linestring',27700)--only used for display
+,rl numeric
+,s_ch numeric--start section chainage
+,e_ch numeric--end section chainage
+,readings_pk int--only used for display
+,rg numrange generated always as (hsrr.to_numrange(s_ch,e_ch,'()')) stored
+);
+
+
+create index if not exists fitted_sec on hsrr.fitted(sec);
+create index if not exists fitted_rev on hsrr.fitted(reversed);
+create index if not exists fitted_rg on hsrr.fitted(rg);script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\tables/resized.sql
+
+create table if not exists hsrr.resized
+(
+pk serial
+,sec text
+,reversed bool
+,xsp text
+,s_ch numeric
+,e_ch numeric
+,vals text
+,rl numeric
+,geom geometry('LineString',27700)
+);
+
+
+
+create index if not exists resized_rg on hsrr.resized(hsrr.to_numrange(s_ch,e_ch,'()'));script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\tables/r_nodes.sql
+drop table if exists hsrr.r_nodes;
+
+create table if not exists hsrr.r_nodes 
+(
+	pk serial primary key
+	,topo_pt geometry('point',27700)
+	,run_pt geometry('point',27700)
+	,run_ch float
+	,topo_pk bigint
+);script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\tables/r_edges.sqldrop table if exists hsrr.r_edges;
+
+create table hsrr.r_edges
+(
+	pk serial
+	,source bigint
+	,target bigint
+	,run_geom geometry
+	,topo_geom geometry
+	,cost float
+	,sec_id bigint
+);
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\tables/requested.sql
+/*
+table of every requested section.direction/xsp.
+used to view coverage.
+*/
+
+
+create table if not exists hsrr.requested(
+sec varchar references hsrr.network(sec),
+reversed bool,
+xsp varchar,
+coverage float,
+note varchar,
+pk serial primary key,
+UNIQUE (sec,reversed,xsp)
+);script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/clamp.sqlset search_path to hsrr,public;
+
+
+CREATE OR REPLACE FUNCTION clamp(val numeric,minimum numeric,maximum numeric) 
+returns numeric as $$
+			select least(greatest(val,minimum),maximum)
+$$ LANGUAGE sql IMMUTABLE;
+
+
+CREATE OR REPLACE FUNCTION clamp(val float,minimum float,maximum float) 
+returns float as $$
+			select least(greatest(val,minimum),maximum)
+$$ LANGUAGE sql IMMUTABLE;script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/geometry_functions.sql
+
+/*
+returns substring of geom, part is desired part of geom,fullrange is full length of geom.
+*/
+
+CREATE OR REPLACE FUNCTION hsrr.substring(geom geometry('linestring'),part numrange,fullRange numrange) 
+	RETURNS geometry('linestring') AS $$
+		declare 		
+			s float =(lower(part*fullRange)-lower(fullRange))/(upper(fullRange)-lower(fullRange));
+			e float =(upper(part*fullRange)-lower(fullRange))/(upper(fullRange)-lower(fullRange));
+		begin
+			if s<e and 0<=s and s<=1 and 0<=e and e<=1 then
+				return st_lineSubstring(geom,s,e);
+			else
+				return null;
+			end if;
+		end;
+	$$ language plpgsql;
+	
+/*	
+select st_asText(hsrr.substring('LINESTRING(343855.059 556197.626,343885.905 556206.547,343949.137 556220.382,343998.494 556228.059,344033.328 556230.044,344046.303 556229.315)'::geometry
+					  ,numrange(0,0.5)
+					  ,numrange(0,2)))	
+					  
+					  
+					  
+*/
+
+
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.line_between_points(line_geom geometry('linestring'),start_point geometry('point'),end_point geometry('point'))
+RETURNS geometry('linestring') AS $$	
+		select case when st_lineLocatePoint(line_geom,start_point)>st_lineLocatePoint(line_geom,end_point) then
+			st_reverse(st_lineSubstring(line_geom,st_lineLocatePoint(line_geom,end_point),st_lineLocatePoint(line_geom,start_point)))
+		else
+			st_lineSubstring(line_geom,st_lineLocatePoint(line_geom,start_point),st_lineLocatePoint(line_geom,end_point))
+		end
+		$$ LANGUAGE sql immutable;script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/run_info_functions.sql
+/*
+generate unique name for run
+*/
+CREATE OR REPLACE FUNCTION hsrr.generate_run_name(prefered text)
+RETURNS text AS $$	
+	DECLARE
+		n int =0;
+	
+    BEGIN
+	
+		if not prefered in (select run from hsrr.run_info) then
+			return prefered;
+		end if;
+
+		while prefered||'_'||n in (select run from hsrr.run_info) loop
+			n = n+1;
+		end loop;
+		
+		return prefered||'_'||n;
+		
+	END;			
+$$ LANGUAGE plpgsql;
+--select (hsrr.generate_run_name('A1 SB RE'))
+
+
+
+													   
+
+
+
+
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/interpolate_2d.sql
+
+--linear interpolation between 2 points (x1,y1) and (x2,y2)
+CREATE OR REPLACE FUNCTION hsrr.interpolate_2d(x numeric,x1 numeric,y1 numeric,x2 numeric,y2 numeric) 
+RETURNS numeric AS $$
+		Declare
+			m numeric = (y2-y1)/(x2-x1);
+			c numeric = y1-m*x1;
+        BEGIN	
+			return m*x+c;
+		END		
+$$
+LANGUAGE plpgsql;
+
+
+--select hsrr.interpolate_2d(0,0,0,2,2)--should be 0
+--select hsrr.interpolate_2d(1,0,0,2,2)-- should be 1
+--select hsrr.interpolate_2d(2,0,0,2,2)-- should be 2
+--select hsrr.interpolate_2d(1,0,0,2,-2)-- should be -1script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/network_functions.sqlCREATE OR REPLACE FUNCTION hsrr.meas_len(sect varchar) RETURNS float AS 
+$$
+SELECT cast(meas_len as float) from hsrr.network where sec=sect
+$$ 
+LANGUAGE sql stable;
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.network_geom(sect varchar,start_ch numeric,end_ch numeric) RETURNS geometry AS
+$$
+SELECT case 
+	when end_ch>start_ch then 
+		ST_LineSubstring(geom,greatest(start_ch/meas_len,0),least(end_ch/meas_len,1) )
+	else
+		st_reverse(ST_LineSubstring(geom,greatest(end_ch/meas_len,0),least(start_ch/meas_len,1) ))
+	end
+	from hsrr.network where sec=sect and meas_len>0
+
+$$
+LANGUAGE sql stable;
+
+
+CREATE OR REPLACE FUNCTION hsrr.point_to_sec_ch(x float,y float,sect text)
+RETURNS float AS $$
+	select meas_len*st_lineLocatePoint(geom,ST_SetSRID(st_makePoint(x,y),27700)) from hsrr.network where sec=sect;
+$$ LANGUAGE sql stable;
+--select hsrr.point_to_sec_ch(0,0,'4700A1/425')
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.sec_ch_to_point(ch float,sect text)
+RETURNS geometry AS $$
+	select case when meas_len>0 then st_lineInterpolatePoint(geom,hsrr.clamp(ch/meas_len,0,1))
+	else null
+	end
+	
+	from hsrr.network where sec=sect;
+$$ LANGUAGE sql stable;
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/refit.sql
+
+/*
+	refit everything
+	5-10s for all area 12.
+
+CREATE OR REPLACE FUNCTION hsrr.refit() 
+	RETURNS void AS $$
+
+
+	delete from hsrr.fitted;
+
+	insert into hsrr.fitted(run,sec,xsp,vect,rl,s_ch,e_ch)
+
+	select 
+	readings.run,sec,routes.xsp,vect,rl
+
+	,greatest(hsrr.interpolate_2d(s_ch,start_run_ch,start_sec_ch,end_run_ch,end_sec_ch),0) as s
+	,least(hsrr.interpolate_2d(e_ch,start_run_ch,start_sec_ch,end_run_ch,end_sec_ch),hsrr.meas_len(sec)::numeric) as e
+
+	from hsrr.routes inner join hsrr.readings on
+	hsrr.to_numrange(s_ch,e_ch,'[]')&&hsrr.to_numrange(start_run_ch,end_run_ch,'()')
+	and routes.run = readings.run
+	and not sec='D'
+	
+	$$ language sql;
+
+--select hsrr.refit();
+*/
+
+
+CREATE OR REPLACE FUNCTION hsrr.refit() 
+	RETURNS void AS $$
+
+	truncate hsrr.fitted RESTART IDENTITY;
+
+	with a as
+		(
+		select routes.run,sec,reversed,xsp,rl
+			,hsrr.to_numrange(start_run_ch,end_run_ch,'()') * hsrr.to_numrange(s_ch,e_ch,'()') as run_rg
+			,s_ch,e_ch,vect,start_run_ch,end_run_ch,start_sec_ch,end_sec_ch
+
+		from hsrr.routes
+		inner join hsrr.readings on hsrr.to_numrange(start_run_ch,end_run_ch,'()') && hsrr.to_numrange(s_ch,e_ch,'()')
+		and routes.run=readings.run and sec!='D'
+		)
+	
+	insert into hsrr.fitted(run,sec,xsp,rl,vect,s_ch,e_ch)
+	select run,sec,xsp,rl,hsrr.substring(vect,run_rg,hsrr.to_numrange(s_ch,e_ch,'()'))
+		,hsrr.clamp(hsrr.interpolate_2d(s_ch,start_run_ch,start_sec_ch,end_run_ch,end_sec_ch),0,hsrr.meas_len(sec)::numeric) as s
+		,hsrr.clamp(hsrr.interpolate_2d(e_ch,start_run_ch,start_sec_ch,end_run_ch,end_sec_ch),0,hsrr.meas_len(sec)::numeric) as e
+	from a;
+	
+	$$ language sql;
+
+
+/*
+
+refit section and xsp
+
+CREATE OR REPLACE FUNCTION hsrr.refit(sect text,xs text) 
+	RETURNS void AS $$
+
+
+	delete from hsrr.fitted where sec=sect and xsp=xs;
+
+	insert into hsrr.fitted(run,sec,xsp,vect,rl,s_ch,e_ch)
+
+	select 
+	readings.run,sec,routes.xsp,vect,rl
+
+	,greatest(hsrr.interpolate_2d(s_ch,start_run_ch,start_sec_ch,end_run_ch,end_sec_ch),0) as s
+	,least(hsrr.interpolate_2d(e_ch,start_run_ch,start_sec_ch,end_run_ch,end_sec_ch),hsrr.meas_len(sec)::numeric) as e
+
+	from hsrr.routes inner join hsrr.readings on
+	hsrr.to_numrange(s_ch,e_ch,'[]')&&hsrr.to_numrange(start_run_ch,end_run_ch,'()')
+	and routes.run = readings.run and sec=sect and xsp=xs
+	and not sec='D'
+	
+	$$ language sql;
+*/
+
+CREATE OR REPLACE FUNCTION hsrr.refit(sect text,xs text) 
+	RETURNS void AS $$
+
+
+	delete from hsrr.fitted where sec=sect and xsp=xs;
+
+	with a as
+		(
+		select routes.run,sec,reversed,xsp,rl
+			,hsrr.to_numrange(start_run_ch,end_run_ch,'()') * hsrr.to_numrange(s_ch,e_ch,'()') as run_rg
+			,s_ch,e_ch,vect,start_run_ch,end_run_ch,start_sec_ch,end_sec_ch
+
+		from hsrr.routes
+		inner join hsrr.readings on hsrr.to_numrange(start_run_ch,end_run_ch,'()') && hsrr.to_numrange(s_ch,e_ch,'()')
+		and routes.run=readings.run and sec!='D'  and sec=sect and xsp=xs
+		)
+	
+	insert into hsrr.fitted(run,sec,xsp,rl,vect,s_ch,e_ch)
+	select run,sec,xsp,rl,hsrr.substring(vect,run_rg,hsrr.to_numrange(s_ch,e_ch,'()'))
+		,hsrr.clamp(hsrr.interpolate_2d(s_ch,start_run_ch,start_sec_ch,end_run_ch,end_sec_ch),0,hsrr.meas_len(sec)::numeric) as s
+		,hsrr.clamp(hsrr.interpolate_2d(e_ch,start_run_ch,start_sec_ch,end_run_ch,end_sec_ch),0,hsrr.meas_len(sec)::numeric) as e
+	from a;
+	
+	$$ language sql;
+
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/weighted_av.sql
+DROP TYPE IF EXISTS hsrr.weighted_val cascade;
+
+CREATE TYPE hsrr.weighted_val as
+(
+val numeric
+,weight numeric
+);
+
+
+--sum(value*weight)/sum(weight)
+--will give div by 0 error when sum of weights is 0. probably a good thing
+
+CREATE OR REPLACE FUNCTION hsrr.weighted_av(vals hsrr.weighted_val[]) 
+RETURNS numeric AS $$
+	 BEGIN	
+		return sum((unnest).weight*(unnest).val)/sum((unnest).weight) from unnest(vals);
+	END;			
+$$ LANGUAGE plpgsql;	
+
+
+--select weighted_av('{"(0,5)","(10,5)"}'::weighted_val[]);script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/update_resized.sql
+
+--update resized from fitted.
+--very efficient, 3s for all of area 12
+CREATE OR REPLACE FUNCTION hsrr.update_resized() 
+	RETURNS void AS $$
+
+	with a as
+	(
+	select resized.pk 
+	,array_agg((fitted.rl,hsrr.length(hsrr.to_numrange(resized.s_ch,resized.e_ch,'()')*fitted.rg))::hsrr.weighted_val) as vals
+	from hsrr.resized inner join hsrr.fitted
+
+	on fitted.sec=resized.sec 
+	and fitted.xsp=resized.xsp 
+	and fitted.reversed=resized.reversed 
+	and fitted.rg&&hsrr.to_numrange(resized.s_ch,resized.e_ch,'()')
+
+	group by resized.pk
+	)
+
+	update hsrr.resized set vals=a.vals::text,rl=hsrr.weighted_av(a.vals) 
+	from a where a.pk=resized.pk;
+	
+	$$ language sql;
+	
+	
+	
+/*
+update resized from fitted for section and xsp.
+*/
+CREATE OR REPLACE FUNCTION hsrr.update_resized(sect text,xp text) 
+	RETURNS void AS $$
+
+	with a as
+	(
+	select resized.pk 
+	,array_agg((fitted.rl,hsrr.length(hsrr.to_numrange(resized.s_ch,resized.e_ch,'()')*fitted.rg))::hsrr.weighted_val) as vals
+	from hsrr.resized inner join hsrr.fitted
+
+	on fitted.sec = sect
+	and resized.sec = sect
+	and fitted.xsp = xp
+	and resized.xsp = xp
+	and fitted.reversed=resized.reversed 
+	and fitted.rg&&hsrr.to_numrange(resized.s_ch,resized.e_ch,'()')
+
+	group by resized.pk
+	)
+
+	update hsrr.resized set vals=a.vals::text,rl=hsrr.weighted_av(a.vals) 
+	from a where a.pk=resized.pk;
+	
+	$$ language sqlscript:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/coverage.sqlset search_path to hsrr,public;
+
+CREATE OR REPLACE FUNCTION hsrr.coverage(sect varchar,x text,r bool) 
+RETURNS float AS $$
+Declare
+	should_be int=count(sec) from hsrr.resized where sec=sect and reversed=r and xsp=x;
+	have int=count(sec) from hsrr.resized where sec=sect and reversed=r and xsp=x and not rl is null;
+	BEGIN
+			
+		if should_be=0 then
+			return null;
+		end if;
+		
+		return  100*have/should_be;
+		
+	END;			
+$$ LANGUAGE plpgsql;
+
+
+--efficient function to recalculate all coverages
+CREATE OR REPLACE FUNCTION hsrr.recalc_coverage() 
+	RETURNS void AS $$
+	BEGIN
+		update hsrr.requested set coverage=0;
+
+		with h as (select sec,reversed,xsp,count(sec) as have from hsrr.resized where not rl is null group by sec,reversed,xsp)
+		update hsrr.requested as r set coverage=have from h where r.sec=h.sec and r.xsp=h.xsp and r.reversed=h.reversed;
+
+
+		with sb as (select sec,reversed,xsp,count(sec) as should_be from hsrr.resized group by sec,reversed,xsp)
+			update hsrr.requested as r set coverage=100*coverage/should_be from sb where r.sec=sb.sec and r.xsp=sb.xsp and r.reversed=sb.reversed;
+
+	
+	END;			
+$$ LANGUAGE plpgsql;
+
+
+/*
+recalculate coverage for section,xsp,direction
+*/
+CREATE OR REPLACE FUNCTION hsrr.recalc_coverage(sect text,xs text,rev bool) 
+	RETURNS void AS $$
+		update hsrr.requested set coverage = hsrr.coverage(sect,xs,rev) where sec=sect and xsp=xs and reversed=rev;
+$$ LANGUAGE sql;
+
+
+
+select * from hsrr.resizedscript:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/process.sql
+CREATE OR REPLACE FUNCTION hsrr.process() 
+RETURNS void AS $$
+	select hsrr.refit();
+	select hsrr.update_resized();
+	select hsrr.recalc_coverage();
+	$$
+LANGUAGE sql;
+
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.process(sect text,xs text) 
+RETURNS void AS $$
+	select hsrr.refit(sect,xs);
+	select hsrr.update_resized(sect,xs);
+	select hsrr.recalc_coverage(sect,xs,True);
+	select hsrr.recalc_coverage(sect,xs,False);
+	$$
+LANGUAGE sql;script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/make_network_topology.sqldrop table if exists hsrr.n;
+drop table if exists hsrr.n_noded;
+
+create table hsrr.n as select id,geom as the_geom,null::int as source,null::int as target from hsrr.network where sec!='D';
+select pgr_nodenetwork('hsrr.n',20.0);--doesn't seem to work with temp table.
+
+select pgr_createTopology('hsrr.n_noded',20.0,clean := TRUE);
+
+
+create table if not exists hsrr.n_noded
+(id bigint)script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/readings_functions.sql
+
+CREATE OR REPLACE FUNCTION hsrr.run_geom(rn text,start_run_ch numeric,end_run_ch numeric)
+RETURNS geometry('multilinestring',27700) AS $$
+
+		select ST_Multi(ST_MakeLine(
+			array(
+				select st_lineSubstring(vect,greatest((start_run_ch-s_ch)/(e_ch-s_ch),0),least((end_run_ch-s_ch)/(e_ch-s_ch),1))
+				from hsrr.readings where run=rn and hsrr.to_numrange(s_ch,e_ch,'()')&&hsrr.to_numrange(start_run_ch,end_run_ch,'()') 
+				  order by s_ch
+			)
+		))
+
+$$ LANGUAGE sql stable;
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.point_to_run_chainage(pt geometry,rn text,dist float=50)-- needs linestrings not multilinestrings
+RETURNS float AS $$	
+		select s_ch+(e_ch-s_ch)*st_lineLocatePoint(vect,pt) from hsrr.readings where run=rn and st_dwithin(vect,pt,dist) order by st_distance(pt,vect) limit 1;
+$$ LANGUAGE sql stable;
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.point_to_run_chainage(x float,y float,rn text,dist float=50)-- needs linestrings not multilinestrings
+RETURNS float AS $$	
+	select hsrr.point_to_run_chainage(ST_SetSRID(st_makePoint(x,y),27700),rn,dist)
+$$ LANGUAGE sql stable;
+
+
+
+--run chainage to point. Where chainage is duplicated returns earlier part of run.
+CREATE OR REPLACE FUNCTION hsrr.run_ch_to_pt_s(ch numeric,rn text)
+RETURNS geometry('Point',27700) AS $$
+	select st_lineInterpolatePoint(vect,(ch-s_ch)/(e_ch-s_ch)) from hsrr.readings where run=rn and hsrr.to_numrange(s_ch,e_ch)@>ch order by e_ch desc limit 1;
+$$ LANGUAGE sql stable;
+
+
+
+--run chainage to point. Where chainage is duplicated returns later part of run.
+--end of part of run. Gap after
+CREATE OR REPLACE FUNCTION hsrr.run_ch_to_pt_e(ch numeric,rn text)
+RETURNS geometry('Point',27700) AS $$
+	select st_lineInterpolatePoint(vect,(ch-s_ch)/(e_ch-s_ch)) from hsrr.readings where run=rn and hsrr.to_numrange(s_ch,e_ch)@>ch order by s_ch asc limit 1;
+$$ LANGUAGE sql stable;
+
+
+
+--make linestring in espg27700 from coordinates in espg4326
+--unused
+CREATE OR REPLACE FUNCTION hsrr.make_run_geometry(start_lon float,start_lat float,end_lon float,end_lat float)
+RETURNS geometry('linestring',27700) AS $$
+select ST_MakeLine(St_Transform(ST_SetSRID(ST_makePoint(start_lon,start_lat),4326),27700),St_Transform(ST_SetSRID(ST_makePoint(end_lon,end_lat),4326),27700))
+$$ LANGUAGE sql immutable;
+
+
+
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/routes_triggers.sqlCREATE OR REPLACE FUNCTION hsrr.routes_change() RETURNS TRIGGER AS $$
+   BEGIN
+      perform hsrr.process(new.sec,new.xsp);
+      RETURN NEW;
+   END;
+$$ LANGUAGE plpgsql;
+
+
+DROP TRIGGER IF EXISTS routes_update on hsrr.routes;
+CREATE TRIGGER routes_update after update
+ON hsrr.routes
+FOR EACH ROW EXECUTE PROCEDURE hsrr.routes_change();
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.routes_delete() RETURNS TRIGGER AS $$
+   BEGIN
+      perform hsrr.process(old.sec,old.xsp);
+      RETURN NEW;
+   END;
+$$ LANGUAGE plpgsql;
+
+
+DROP TRIGGER IF EXISTS routes_delete on hsrr.routes;
+CREATE TRIGGER routes_delete after delete
+ON hsrr.routes
+FOR EACH ROW EXECUTE PROCEDURE hsrr.routes_delete();script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\tables/edges.sqlcreate table if not exists hsrr.route_edges
+	(
+	pk serial primary key
+	,start_run_ch numeric(9,3)
+	,end_run_ch numeric(9,3)
+	,run_geometry geometry--only used for viewing/debugging.
+	,sec text default 'D'
+	,start_sec_ch numeric(9,3)  default 0
+	,end_sec_ch numeric(9,3)  default 0
+	--,sec_geom geometry('linestring',27700)
+	,source bigint
+	,target bigint
+	,cost float
+	);
+
+
+
+
+
+create table if not exists hsrr.route_nodes
+(
+	pk serial primary key
+	,run_ch numeric(9,3)--chainages can be repeated because gaps
+	,pt geometry('point',27700) unique--points should not be repeated. snap to grid to compare.
+);
+
+create index on hsrr.route_nodes using gist(pt);script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\autofit/cost.sql/*
+higher cost =  worse fit.
+average closest distance from reading to section_geom for readings within range.
+sec_geom is part of section within section chainages. null for dummy.
+*/
+CREATE OR REPLACE FUNCTION hsrr.cost(rn text,start_run_ch numeric,end_run_ch numeric,sec_geom geometry)
+RETURNS float AS $$
+	select case
+		when sec_geom is null then 
+			20+100*abs(end_run_ch-start_run_ch)
+		else
+	 		(select avg(st_distance(vect,sec_geom)) 
+			from hsrr.readings
+			where run=rn and hsrr.to_numrange(s_ch,e_ch,'()')&&hsrr.to_numrange(start_run_ch,end_run_ch,'()')
+			)
+	end;
+$$ LANGUAGE sql STABLE;--readings could change. 
+--"A STABLE function cannot modify the database and is guaranteed to return the same results given the same arguments for all rows within a single statement"
+
+
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\autofit/r_nodes.sql
+drop table if exists hsrr.r_nodes;
+
+create table if not exists hsrr.r_nodes 
+(
+	pk serial primary key
+	,topo_pt geometry('point',27700)
+	,run_pt geometry('point',27700)
+	,run_ch float
+	,topo_pk bigint
+);script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\autofit/r_edges.sqldrop table if exists hsrr.r_edges;
+
+create table hsrr.r_edges
+(
+	pk serial
+	,source bigint
+	,target bigint
+	,run_geom geometry
+	,topo_geom geometry
+	,cost float
+	,sec_id bigint
+);
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\autofit/fitting_options.sql
+--True if vect in opposite direction to sec_geom.
+--null for circular section. no good way to tell direction (small rbt problems)
+CREATE OR REPLACE FUNCTION hsrr.is_reverse_direction(sec_geom geometry('linestring',27700),vect geometry('linestring',27700))
+RETURNS bool AS $$
+	select case when st_isClosed(sec_geom) then
+		null
+	else
+		st_lineLocatePoint(sec_geom,st_startPoint(vect))>st_lineLocatePoint(sec_geom,st_endPoint(vect))
+	end$$ LANGUAGE sql immutable;	
+
+
+
+
+/*
+	trim towards network geom.
+	to find new ends of run geom go from end of run geom to closest point on network geom.
+	then closest point on run_geom to this.
+		
+	then consider splitting run_geom for roundabouts.
+*/
+
+CREATE OR REPLACE FUNCTION hsrr.tidy_run_geom(run_geom geometry('linestring',27700),network_geom geometry('linestring',27700))
+RETURNS geometry('linestring',27700)[] AS $$
+
+		with a as 	
+		(
+		select ST_LineSubstring(run_geom
+		,st_lineLocatePoint(run_geom,st_closestPoint(run_geom,st_closestPoint(network_geom,st_startpoint(run_geom))))
+		,st_lineLocatePoint(run_geom,st_closestPoint(run_geom,st_closestPoint(network_geom,st_endpoint(run_geom))))
+		) as g
+		)
+		
+		select case when st_isClosed(network_geom) then
+			array(select (st_dump(st_split(g,st_closestPoint(run_geom,st_startpoint(network_geom))))).geom from a)
+		else
+			array(select g from a)
+		end
+		
+	end$$ LANGUAGE sql immutable;	
+	
+	
+	
+	
+
+
+/*
+	sections+chainages for run rn.
+	does not include dummys.
+	
+	join readings to network on readings geometry within buffer.
+	buffers in network should extend past ends of section for best results.
+	st_buffer(geom,20)
+	
+	group by section+direction(handles change of direction)
+	
+	merge ajacent parts of run geometry within buffer (makes.multilinestring).
+	split this into linestrings. (handles gaps,run left network,repeated section)
+	
+	move ends of run_geoms towards ends of sections by going to nearest point of section then to nearest point of run_geom.
+	
+	lookup run chainage from ends of these.
+	round chainages to nearest 1m.
+	
+*/
+
+CREATE OR REPLACE FUNCTION hsrr.fitting_options(rn text)
+RETURNS table (sec text,start_sec_ch numeric,end_sec_ch numeric,start_run_ch numeric,end_run_ch numeric,run_geom geometry('linestring',27700)) AS $$
+
+	with a as
+	(select sec
+	 ,(st_dump(ST_LineMerge(ST_union(st_intersection(vect,buffer) order by s_ch asc,50)))).geom as run_geom
+	,hsrr.is_reverse_direction(geom,vect) as reversed
+	,geom as network_geom
+	,meas_len
+	from hsrr.network inner join hsrr.readings on st_intersects(vect,buffer) and run = rn
+	and ((hsrr.is_reverse_direction(geom,vect) and has_reverse) or (has_forward and not hsrr.is_reverse_direction(geom,vect) or hsrr.is_reverse_direction(geom,vect) is null))
+	group by sec,hsrr.is_reverse_direction(geom,vect),network_geom,meas_len
+	)
+
+	, b as (select sec,network_geom,meas_len,unnest(hsrr.tidy_run_geom(run_geom,network_geom)) as run_geom from a)
+	
+	select sec
+	,(meas_len*st_linelocatePoint(network_geom,st_startPoint(run_geom)))::numeric(9,3) as start_sec_ch
+	,(meas_len*st_linelocatePoint(network_geom,st_endPoint(run_geom)))::numeric(9,3) as end_sec_ch
+	,hsrr.point_to_run_chainage(st_startPoint(run_geom),rn)::numeric(9,3) as start_run_ch--closest point of run_geom to closest point of sec_geom to start.
+	,hsrr.point_to_run_chainage(st_endPoint(run_geom),rn)::numeric(9,3) as end_run_ch--closest point of run_geom to closest point of sec_geom to start.
+	,run_geom
+	from b
+	where
+	hsrr.point_to_run_chainage(st_startPoint(run_geom),rn)::numeric(9,3)
+	<hsrr.point_to_run_chainage(st_endPoint(run_geom),rn)::numeric(9,3)
+	
+$$ LANGUAGE sql stable;script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\autofit/simple_autofit.sqlCREATE OR REPLACE FUNCTION hsrr.simple_autofit(rn text)
+RETURNS table (pk int) AS $$
+
+	insert into hsrr.routes(run,start_run_ch,end_run_ch,sec,start_sec_ch,end_sec_ch)
+	select rn,start_run_ch,end_run_ch,sec,start_sec_ch,end_sec_ch from hsrr.fitting_options(rn)
+	returning pk;
+	
+$$ LANGUAGE sql VOLATILE;script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\autofit/recalc_r_nodes.sql
+CREATE OR REPLACE FUNCTION hsrr.recalc_r_nodes(rn text)
+RETURNS void AS $$
+
+	truncate hsrr.r_nodes RESTART IDENTITY;
+
+	with run_geoms as
+	(
+	select (st_dump(ST_LineMerge(ST_union(vect order by s_ch asc,50)))).geom as run_geom
+	from hsrr.readings inner join hsrr.n_noded on st_dwithin(vect,the_geom,50) and run = rn
+	)
+
+	,run_ends as 
+	(
+	select st_startPoint(run_geom) as run_pt from run_geoms
+	union
+	select st_endPoint(run_geom) from run_geoms
+	)
+
+	insert into hsrr.r_nodes(run_pt,topo_pt,topo_pk)
+	select run_pt,st_closestPoint(the_geom,run_pt),null from run_ends inner join hsrr.n_noded on st_dwithin(run_pt,the_geom,50)
+	union
+	select st_closestPoint(run_geom,the_geom),the_geom,id from hsrr.n_noded_vertices_pgr inner join run_geoms on st_dwithin(the_geom,run_geom,50);
+
+	update hsrr.r_nodes set run_ch = hsrr.point_to_run_chainage(run_pt,rn);
+
+$$ LANGUAGE sql;script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\autofit/recalc_r_edges.sql
+
+CREATE OR REPLACE FUNCTION hsrr.recalc_r_edges(rn text)
+RETURNS void AS $$
+
+	truncate hsrr.r_edges RESTART IDENTITY;
+
+	with noded as
+	(
+	select old_id,source,target,the_geom from hsrr.n_noded where (select has_forward from hsrr.network where old_id=id)
+	union
+	select old_id,target,source,st_reverse(the_geom) from hsrr.n_noded where (select has_reverse from hsrr.network where old_id=id)
+	)
+
+	insert into hsrr.r_edges(source,target,run_geom,topo_geom,sec_id)
+	select s.pk as source
+	,e.pk as target
+	,hsrr.run_geom(rn,s.run_ch::numeric,e.run_ch::numeric)
+	,hsrr.line_between_points(the_geom,s.topo_pt,e.topo_pt)
+	,old_id
+
+	from 
+	hsrr.r_nodes as s
+	inner join
+	hsrr.r_nodes as e
+	on s.run_ch<e.run_ch-- not adding dummys here.
+
+	inner join noded on
+	((s.topo_pk = noded.source ) or (s.topo_pk is null and st_dwithin(s.topo_pt,the_geom,10)))
+	and
+	((e.topo_pk = noded.target ) or (e.topo_pk is null and st_dwithin(e.topo_pt,the_geom,10)))
+
+	and st_lineLocatePoint(the_geom,s.topo_pt)<st_lineLocatePoint(the_geom,e.topo_pt);
+
+	/*
+	adding dummys here
+	*/
+	insert into hsrr.r_edges(source,target)
+	select
+	s.pk
+	,e.pk
+
+	from 
+	hsrr.r_nodes as s
+	inner join
+	hsrr.r_nodes as e
+	on s.run_ch<=e.run_ch;
+
+	update hsrr.r_edges set cost = hsrr.cost(rn,(select run_ch::numeric from hsrr.r_nodes where pk=source),(select run_ch::numeric from hsrr.r_nodes where pk=target),topo_geom);
+
+$$ LANGUAGE sql;
+
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\autofit/least_cost_topology_autofit.sqlCREATE OR REPLACE FUNCTION hsrr.least_cost_topology_autofit(rn text)
+RETURNS table (pk int) AS $$
+	select hsrr.recalc_r_nodes(rn);
+	select hsrr.recalc_r_edges(rn);
+	
+	insert into hsrr.routes(run,sec,start_sec_ch,end_sec_ch,start_run_ch,end_run_ch)
+
+	select rn,sec
+	,meas_len*st_lineLocatePoint(geom,st_startPoint(topo_geom)) as start_sec_ch
+	,meas_len*st_lineLocatePoint(geom,st_endPoint(topo_geom)) as end_sec_ch
+	,(select run_ch from hsrr.r_nodes where pk=source ) as start_run_ch
+	,(select run_ch from hsrr.r_nodes where pk=target ) as end_run_ch
+
+
+	from pgr_dijkstra('select pk as id, source, target, cost from hsrr.r_edges'
+						,(select pk from hsrr.r_nodes order by run_ch limit 1)::bigint--pk of first chainage in run
+						,(select pk from hsrr.r_nodes order by run_ch desc limit 1)::bigint
+						)
+						inner join hsrr.r_edges on pk=edge
+						inner join  hsrr.network on network.id = sec_id
+
+	returning pk;
+
+$$ LANGUAGE sql;
+script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\autofit/recalc_nodes.sql	
+	
+CREATE OR REPLACE FUNCTION hsrr.recalc_route_nodes(rn text)
+RETURNS void AS $$
+
+truncate hsrr.route_nodes RESTART IDENTITY;
+	
+insert into hsrr.route_nodes(pt)
+
+	with a as
+	(select sec
+	 ,(st_dump(ST_LineMerge(ST_union(st_intersection(vect,buffer) order by s_ch asc,50)))).geom as run_geom
+	,hsrr.is_reverse_direction(geom,vect) as reversed
+	,geom as network_geom
+	,meas_len
+	from hsrr.network inner join hsrr.readings on st_intersects(vect,buffer) and run = rn
+	and ((hsrr.is_reverse_direction(geom,vect) and has_reverse) or (has_forward and not hsrr.is_reverse_direction(geom,vect) or hsrr.is_reverse_direction(geom,vect) is null))
+	group by sec,hsrr.is_reverse_direction(geom,vect),network_geom,meas_len
+	)
+	
+	, points as
+	(
+	select ST_ReducePrecision(st_closestPoint(run_geom,st_closestPoint(network_geom,st_startPoint(run_geom))),1) as pt from a
+	union 
+	select ST_ReducePrecision(st_closestPoint(run_geom,st_closestPoint(network_geom,st_endPoint(run_geom))),1)--snap to 1m grid.
+	from a
+	)
+	select pt from points group by pt;
+	
+	
+	update hsrr.route_nodes set run_ch = hsrr.point_to_run_chainage(pt,rn);
+	
+	insert into hsrr.route_nodes(run_ch,pt)
+	select s_ch,ST_ReducePrecision(st_startPoint(vect),1) from hsrr.readings where run=rn order by s_ch limit 1
+	on conflict do nothing;
+
+
+	insert into hsrr.route_nodes(run_ch,pt)
+	select e_ch,ST_ReducePrecision(st_endPoint(vect),1) from hsrr.readings where run=rn order by e_ch desc limit 1
+	on conflict do nothing;
+
+	$$ LANGUAGE sql;script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\autofit/recalc_edges.sql
+/*
+	find nodes where section could change.
+	find sections joining these.
+	add dummys joining nodes to later nodes.
+*/
+
+
+CREATE OR REPLACE FUNCTION hsrr.recalc_route_edges(rn text)
+RETURNS void AS $$
+	--empty tables and reset sequences
+	truncate hsrr.route_edges RESTART IDENTITY;
+	
+	select hsrr.recalc_route_nodes(rn);
+
+	--add sections linking nodes to following nodes. 
+	insert into hsrr.route_edges(source,start_run_ch,target,end_run_ch,sec,start_sec_ch,end_sec_ch)
+	select 
+		a.pk as source
+		,a.run_ch as start_run_ch
+		,b.pk as target
+		,b.run_ch as end_run_ch
+		,sec
+		,st_linelocatePoint(geom,a.pt)*meas_len as start_sec_ch
+		,st_linelocatePoint(geom,b.pt)*meas_len as end_sec_ch
+
+	from hsrr.route_nodes as a inner join hsrr.route_nodes as b
+	on b.run_ch>a.run_ch--ignore points less than 0.005km apart.
+
+	inner join hsrr.network on st_dwithin(a.pt,geom,40) and st_dwithin(b.pt,geom,40)
+	--and st_linelocatePoint(geom,a.pt)>0 and st_linelocatePoint(geom,b.pt)<1
+
+	and (
+		(has_forward and st_linelocatePoint(geom,a.pt)::numeric(9,3)<st_linelocatePoint(geom,b.pt)::numeric(9,3))
+		or (has_reverse and st_linelocatePoint(geom,a.pt)::numeric(9,3)>st_linelocatePoint(geom,b.pt)::numeric(9,3))
+		)
+	
+	and abs((b.run_ch-a.run_ch)-meas_len)<100--within 100m of meas_len.
+	;
+	
+	/*dummys between chainage and every following (or identical)chainage.
+	need dummy across gap in readings otherwise no way across without choosing incorrect dummy
+	*/
+	
+	insert into hsrr.route_edges(start_run_ch,end_run_ch,source,target)
+	select s.run_ch,e.run_ch,s.pk,e.pk--hsrr.cost(rn text,start_run_ch numeric,end_run_ch numeric,sec_geom geometry)
+	from hsrr.route_nodes as s inner join hsrr.route_nodes as e on s.run_ch<=e.run_ch
+	and s.pk!=e.pk;
+	
+	update hsrr.route_edges set cost = hsrr.cost(rn,start_run_ch,end_run_ch,hsrr.network_geom(sec,start_sec_ch,end_sec_ch));
+
+
+$$ LANGUAGE sql;script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\autofit/least_cost_autofit.sql--requires edges.sql and recalc_edges.sql 
+
+
+create extension if not exists pgRouting;
+
+CREATE OR REPLACE FUNCTION hsrr.least_cost_autofit(rn text)
+RETURNS table (pk int) AS $$
+	select hsrr.recalc_route_edges(rn);
+
+	insert into hsrr.routes(run,start_run_ch,end_run_ch,sec,start_sec_ch,end_sec_ch)
+	select rn,start_run_ch,end_run_ch,sec,start_sec_ch,end_sec_ch from pgr_dijkstra('select pk as id, source, target, cost from hsrr.route_edges'
+					,(select pk from hsrr.route_nodes order by run_ch limit 1)::bigint--pk of first chainage in run
+					,(select pk from hsrr.route_nodes order by run_ch desc limit 1)::bigint
+					)--pk of last chainage in run
+					
+					inner join hsrr.route_edges on route_edges.pk = edge
+					
+	returning pk
+	
+$$ LANGUAGE sql;script:C:\Users/drew.bennett/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\hsrr_processor\database\functions/routes_triggers.sqlCREATE OR REPLACE FUNCTION hsrr.routes_change() RETURNS TRIGGER AS $$
+   BEGIN
+      perform hsrr.process(new.sec,new.xsp);
+      RETURN NEW;
+   END;
+$$ LANGUAGE plpgsql;
+
+
+DROP TRIGGER IF EXISTS routes_update on hsrr.routes;
+CREATE TRIGGER routes_update after update
+ON hsrr.routes
+FOR EACH ROW EXECUTE PROCEDURE hsrr.routes_change();
+
+
+
+CREATE OR REPLACE FUNCTION hsrr.routes_delete() RETURNS TRIGGER AS $$
+   BEGIN
+      perform hsrr.process(old.sec,old.xsp);
+      RETURN NEW;
+   END;
+$$ LANGUAGE plpgsql;
+
+
+DROP TRIGGER IF EXISTS routes_delete on hsrr.routes;
+CREATE TRIGGER routes_delete after delete
+ON hsrr.routes
+FOR EACH ROW EXECUTE PROCEDURE hsrr.routes_delete();
